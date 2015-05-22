@@ -1,6 +1,7 @@
 # PALADIN
 
 [![Join the chat at https://gitter.im/twestbrookunh/paladin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/twestbrookunh/paladin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Protein Alignment and Detection Interface
 
  PALADIN is a protein sequence alignment tool based on the BWA source.  Like BWA, it aligns
