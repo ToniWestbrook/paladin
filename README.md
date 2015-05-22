@@ -1,4 +1,4 @@
-# paladin
+# PALADIN
 Protein Alignment and Detection Interface
 
  PALADIN is a protein sequence alignment tool based on the BWA source.  Like BWA, it aligns
