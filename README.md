@@ -1,7 +1,5 @@
 # PALADIN
 
-[![Join the chat at https://gitter.im/twestbrookunh/paladin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/twestbrookunh/paladin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 Protein Alignment and Detection Interface
 
  PALADIN is a protein sequence alignment tool based on the BWA source.  Like BWA, it aligns
@@ -15,3 +13,9 @@ Protein Alignment and Detection Interface
 
  PALADIN currently only supports single-end reads, and BWA-MEM based alignment.  It makes 
  use of many BWA parameters and is therefore compatible with many of its command line arguments.
+
+[![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
+
+[![Join the chat at https://gitter.im/twestbrookunh/paladin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/twestbrookunh/paladin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+
