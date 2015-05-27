@@ -5,7 +5,7 @@ WRAP_MALLOC=-DUSE_MALLOC_WRAPPERS
 AR=			ar
 DFLAGS=		-DHAVE_PTHREAD $(WRAP_MALLOC)
 LOBJS=		utils.o kthread.o kstring.o ksw.o bwt.o bntseq.o bwa.o bwamem.o bwamem_pair.o bwamem_extra.o malloc_wrap.o
-AOBJS=		is.o bwtindex.o kopen.o pemerge.o fastmap.o protein.o bwashm.o
+AOBJS=		is.o bwtindex.o kopen.o pemerge.o align.o protein.o bwashm.o
 PROG=		paladin
 INCLUDES=	
 LIBS=		-lm -lz -lpthread
@@ -36,7 +36,6 @@ depend:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-#QSufSort.o: QSufSort.h
 bntseq.o: bntseq.h utils.h kseq.h malloc_wrap.h khash.h
 bwa.o: bntseq.h bwa.h bwt.h ksw.h utils.h kstring.h malloc_wrap.h kseq.h
 bwamem.o: kstring.h malloc_wrap.h bwamem.h bwt.h bntseq.h bwa.h ksw.h kvec.h
@@ -47,7 +46,7 @@ bwamem_pair.o: utils.h ksw.h
 bwashm.o: bwa.h bntseq.h bwt.h
 bwt.o: utils.h bwt.h kvec.h malloc_wrap.h
 bwtindex.o: bntseq.h bwt.h utils.h malloc_wrap.h
-fastmap.o: bwa.h bntseq.h bwt.h bwamem.h kvec.h malloc_wrap.h utils.h kseq.h
+align.o: bwa.h bntseq.h bwt.h bwamem.h kvec.h malloc_wrap.h utils.h kseq.h
 is.o: malloc_wrap.h
 kopen.o: malloc_wrap.h
 kstring.o: kstring.h malloc_wrap.h

@@ -6,37 +6,13 @@
 #include <limits.h>
 #include <ctype.h>
 #include <math.h>
-#include "bwa.h"
-#include "bwamem.h"
+#include "align.h"
 #include "kvec.h"
 #include "utils.h"
 #include "bntseq.h"
-#include "kseq.h"
-KSEQ_DECLARE(gzFile)
+#include "protein.h"
 
-extern unsigned char nst_nt4_table[256];
-
-void *kopen(const char *fn, int *_fd);
-int kclose(void *a);
-void kt_pipeline(int n_threads, void *(*func)(void*, int, void*), void *shared_data, int n_steps);
-
-typedef struct {
-	kseq_t *ks, *ks2;
-	mem_opt_t *opt;
-	mem_pestat_t *pes0;
-	int64_t n_processed;
-	int copy_comment, actual_chunk_size;
-	bwaidx_t *idx;
-} ktp_aux_t;
-
-typedef struct {
-	ktp_aux_t *aux;
-	int n_seqs;
-	bseq1_t *seqs;
-} ktp_data_t;
-
-static void *process(void *shared, int step, void *_data)
-{
+static void *process(void *shared, int step, void *_data) {
 	ktp_aux_t *aux = (ktp_aux_t*)shared;
 	ktp_data_t *data = (ktp_data_t*)_data;
 	int i;
@@ -96,8 +72,7 @@ static void *process(void *shared, int step, void *_data)
 	return 0;
 }
 
-static void update_a(mem_opt_t *opt, const mem_opt_t *opt0)
-{
+static void update_a(mem_opt_t *opt, const mem_opt_t *opt0) {
 	if (opt0->a) { // matching score is changed
 		if (!opt0->b) opt->b *= opt->a;
 		if (!opt0->T) opt->T *= opt->a;
@@ -112,8 +87,7 @@ static void update_a(mem_opt_t *opt, const mem_opt_t *opt0)
 	}
 }
 
-int main_mem(int argc, char *argv[])
-{
+int command_align(int argc, char *argv[]) {
 	mem_opt_t *opt, opt0;
 	int fd, fd2, i, c, ignore_alt = 0, no_mt_io = 0;
 	int fixed_chunk_size = -1;
@@ -131,8 +105,9 @@ int main_mem(int argc, char *argv[])
 
 	aux.opt = opt = mem_opt_init();
 	memset(&opt0, 0, sizeof(mem_opt_t));
-	while ((c = getopt(argc, argv, "1epaFMCSPVYjk:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epaFMCSPVYjk:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
+		else if (c == 'o') opt->min_orf_len = atoi(optarg);
 		else if (c == '1') no_mt_io = 1;
 		else if (c == 'x') mode = optarg;
 		else if (c == 'w') opt->w = atoi(optarg), opt0.w = 1;
@@ -241,6 +216,7 @@ int main_mem(int argc, char *argv[])
 		fprintf(stderr, "Algorithm options:\n\n");
 		fprintf(stderr, "       -t INT        number of threads [%d]\n", opt->n_threads);
 		fprintf(stderr, "       -k INT        minimum seed length [%d]\n", opt->min_seed_len);
+		fprintf(stderr, "       -o INT        minimum ORF length accepted during protein detection [%d]\n", opt->min_orf_len);
 		fprintf(stderr, "       -w INT        band width for banded alignment [%d]\n", opt->w);
 		fprintf(stderr, "       -d INT        off-diagonal X-dropoff [%d]\n", opt->zdrop);
 		fprintf(stderr, "       -r FLOAT      look for internal seeds inside a seed longer than {-k} * FLOAT [%g]\n", opt->split_factor);
@@ -340,11 +316,10 @@ int main_mem(int argc, char *argv[])
 			aux.idx->bns->anns[i].is_alt = 0;
 
 
-	// TESTING
+	// Detect proteins and write to .pro file
 	proName = malloc(strlen(argv[optind + 1]) + 5);
 	sprintf(proName, "%s.pro", argv[optind + 1]);
-
-	writeReadsProtein(argv[optind + 1], proName);
+	writeReadsProtein(argv[optind + 1], proName, opt);
 
 	ko = kopen(proName, &fd);
 	if (ko == 0) {
@@ -382,82 +357,5 @@ int main_mem(int argc, char *argv[])
 		kseq_destroy(aux.ks2);
 		err_gzclose(fp2); kclose(ko2);
 	}
-	return 0;
-}
-
-int main_fastmap(int argc, char *argv[])
-{
-	int c, i, min_iwidth = 20, min_len = 17, print_seq = 0, min_intv = 1, max_len = INT_MAX;
-	uint64_t max_intv = 0;
-	kseq_t *seq;
-	bwtint_t k;
-	gzFile fp;
-	smem_i *itr;
-	const bwtintv_v *a;
-	bwaidx_t *idx;
-
-	while ((c = getopt(argc, argv, "w:l:pi:I:L:")) >= 0) {
-		switch (c) {
-			case 'p': print_seq = 1; break;
-			case 'w': min_iwidth = atoi(optarg); break;
-			case 'l': min_len = atoi(optarg); break;
-			case 'i': min_intv = atoi(optarg); break;
-			case 'I': max_intv = atol(optarg); break;
-			case 'L': max_len  = atoi(optarg); break;
-		    default: return 1;
-		}
-	}
-	if (optind + 1 >= argc) {
-		fprintf(stderr, "\n");
-		fprintf(stderr, "Usage:   bwa fastmap [options] <idxbase> <in.fq>\n\n");
-		fprintf(stderr, "Options: -l INT    min SMEM length to output [%d]\n", min_len);
-		fprintf(stderr, "         -w INT    max interval size to find coordiantes [%d]\n", min_iwidth);
-		fprintf(stderr, "         -i INT    min SMEM interval size [%d]\n", min_intv);
-		fprintf(stderr, "         -l INT    max MEM length [%d]\n", max_len);
-		fprintf(stderr, "         -I INT    stop if MEM is longer than -l with a size less than INT [%ld]\n", (long)max_intv);
-		fprintf(stderr, "\n");
-		return 1;
-	}
-
-	fp = xzopen(argv[optind + 1], "r");
-	seq = kseq_init(fp);
-	if ((idx = bwa_idx_load(argv[optind], BWA_IDX_BWT|BWA_IDX_BNS)) == 0) return 1;
-	itr = smem_itr_init(idx->bwt);
-	smem_config(itr, min_intv, max_len, max_intv);
-	while (kseq_read(seq) >= 0) {
-		err_printf("SQ\t%s\t%ld", seq->name.s, seq->seq.l);
-		if (print_seq) {
-			err_putchar('\t');
-			err_puts(seq->seq.s);
-		} else err_putchar('\n');
-		for (i = 0; i < seq->seq.l; ++i)
-			seq->seq.s[i] = nst_nt4_table[(int)seq->seq.s[i]];
-		smem_set_query(itr, seq->seq.l, (uint8_t*)seq->seq.s);
-		while ((a = smem_next(itr)) != 0) {
-			for (i = 0; i < a->n; ++i) {
-				bwtintv_t *p = &a->a[i];
-				if ((uint32_t)p->info - (p->info>>32) < min_len) continue;
-				err_printf("EM\t%d\t%d\t%ld", (uint32_t)(p->info>>32), (uint32_t)p->info, (long)p->x[2]);
-				if (p->x[2] <= min_iwidth) {
-					for (k = 0; k < p->x[2]; ++k) {
-						bwtint_t pos;
-						int len, is_rev, ref_id;
-						len  = (uint32_t)p->info - (p->info>>32);
-						pos = bns_depos(idx->bns, bwt_sa(idx->bwt, p->x[0] + k), &is_rev);
-						if (is_rev) pos -= len - 1;
-						bns_cnt_ambi(idx->bns, pos, len, &ref_id);
-						err_printf("\t%s:%c%ld", idx->bns->anns[ref_id].name, "+-"[is_rev], (long)(pos - idx->bns->anns[ref_id].offset) + 1);
-					}
-				} else err_puts("\t*");
-				err_putchar('\n');
-			}
-		}
-		err_puts("//");
-	}
-
-	smem_itr_destroy(itr);
-	bwa_idx_destroy(idx);
-	kseq_destroy(seq);
-	err_gzclose(fp);
 	return 0;
 }

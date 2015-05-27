@@ -63,7 +63,6 @@ typedef struct {
 	FILE *fp_pac;
 } bntseq_t;
 
-//extern unsigned char nst_nt4_table[256];
 extern unsigned char aa_encode_hash[256];
 extern unsigned char aa_ascii_hash[256];
 
