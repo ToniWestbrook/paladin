@@ -61,7 +61,8 @@ mem_opt_t *mem_opt_init()
 
 	o->max_mem_intv = 20;
 
-	o->min_seed_len = 19;
+	o->min_orf_len = 180;
+	o->min_seed_len = 11;
 	o->split_width = 10;
 	o->max_occ = 500;
 	o->max_chain_gap = 10000;
@@ -119,7 +120,6 @@ static void mem_collect_intv(const mem_opt_t *opt, const bwt_t *bwt, int len, co
 	a->mem.n = 0;
 	// first pass: find all SMEMs
 	while (x < len) {
-		//if (seq[x] < 4) {
 		if (seq[x] < VALUE_DEFINED) {
 			x = bwt_smem1(bwt, len, seq, x, start_width, &a->mem1, a->tmpv);
 			for (i = 0; i < a->mem1.n; ++i) {
@@ -148,7 +148,6 @@ static void mem_collect_intv(const mem_opt_t *opt, const bwt_t *bwt, int len, co
 	if (opt->max_mem_intv > 0) {
 		x = 0;
 		while (x < len) {
-			//if (seq[x] < 4) {
 			if (seq[x] < VALUE_DEFINED) {
 				if (1) {
 					bwtintv_t m;

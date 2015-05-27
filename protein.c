@@ -184,7 +184,7 @@ void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned l
 }
 
 // Filter history array for ORF selection parameters, return corresponding CDS array
-void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct CDS * * retCDS, unsigned long * retCount) {
+void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], int passMinORF, struct CDS * * retCDS, unsigned long * retCount) {
 	unsigned long srcFrameIdx, srcHistoryIdx, dstFrameIdx, dstHistoryIdx, totalSize;
 	unsigned long srcStart, srcEnd, dstStart, dstEnd, srcLen, dstLen;
 	int validEntry;
@@ -212,7 +212,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct
 			validEntry = 1;
 
 			// Filter minimum ORF size (to be set from command line args)
-			if (srcLen < 180) continue;
+			if (srcLen < passMinORF) continue;
 			
 			// Search for larger overlapping ORFs
 			for (dstFrameIdx = 0 ; dstFrameIdx < 6 ; dstFrameIdx++) {
@@ -233,7 +233,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct
 					dstLen = abs(dstEnd - dstStart) + 1;
 
 					// Compare potential frames that are larger 
-					if (dstLen  > srcLen) {
+					if (dstLen > srcLen) {
 						// src.start <= dst.start <= src.end
 						if ((srcStart + 0 <= dstStart) && (dstStart <= srcEnd - 0)) validEntry = 0;
 
@@ -260,7 +260,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct
 }
 
 // Scan nucleotide sequence for all recognized ORFs, return as CDS array
-int getSequenceORF(char * passSequence, unsigned long passLength, struct CDS * * retCDS, unsigned long * retCount) {
+int getSequenceORF(char * passSequence, unsigned long passLength, int passMinORF, struct CDS * * retCDS, unsigned long * retCount) {
 	unsigned long strandIdx, frameIdx, seqIdx, historyIdx;
 	long * history[2][6], historySize[6], absIdx;
 	unsigned char currentCodon;
@@ -320,7 +320,7 @@ int getSequenceORF(char * passSequence, unsigned long passLength, struct CDS * *
 	}
 
 	// Filter, remove overlaps, create CDS array
-	compileORFHistory(history, historySize, retCDS, retCount);
+	compileORFHistory(history, historySize, passMinORF, retCDS, retCount);
 
 	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) free(history[frameIdx / 3][frameIdx % 3]);
 
@@ -444,14 +444,13 @@ int writeIndexMultiProtein(const char * passPrefix, const char * passProName, co
 }
 
 // Detects ORFs in the given nucleotide FASTA file and converts to a protein FASTA file
-int writeReadsProtein(const char * passPrefix, const char * passProName) {
+int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt_t * passOptions) {
 	struct CDS * orfList;
 	gzFile inputSeqPtr;
 	FILE * outputPtr;
  	char * outputBuffer;
 	kseq_t * seq;
 	unsigned long seqIdx, outputSize, orfCount, orfIdx;
-	char testHeader[4096];
 
 	// Prepare file handles
 	inputSeqPtr = xzopen(passPrefix, "r");
@@ -463,8 +462,8 @@ int writeReadsProtein(const char * passPrefix, const char * passProName) {
 
 	while(kseq_read(seq) >= 0) {
 		// Search for ORFs
-		getSequenceORF(seq->seq.s, seq->seq.l, &orfList, &orfCount);
-		//if (orfCount > 0) testReadHeader(seq->name.s, testHeader);
+		getSequenceORF(seq->seq.s, seq->seq.l, passOptions->min_orf_len, &orfList, &orfCount);
+
 		// Write out the corresponding protein sequence for each ORF
 		for (orfIdx = 0 ; orfIdx < orfCount ; orfIdx++) {
 			convertToAA(seq->seq.s, orfList+orfIdx, &outputBuffer, &outputSize);

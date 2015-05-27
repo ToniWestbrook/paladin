@@ -35,6 +35,7 @@ typedef struct {
 
 	int T;                  // output score threshold; only affecting output
 	int flag;               // see MEM_F_* macros
+	int min_orf_len;		// minimum ORF length accepted during protein detection
 	int min_seed_len;       // minimum seed length
 	int min_chain_weight;
 	int max_chain_extend;

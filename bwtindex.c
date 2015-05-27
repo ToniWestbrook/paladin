@@ -6,8 +6,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <zlib.h>
+#include "bwtindex.h"
 #include "bntseq.h"
-#include "bwt.h"
 #include "utils.h"
 
 #ifdef _DIVBWT
@@ -17,8 +17,6 @@
 #ifdef USE_MALLOC_WRAPPERS
     #include "malloc_wrap.h"
 #endif
-
-int is_bwt(ubyte_t *T, int n);
 
 // Pack the given byte value into the BWT (pre-interleaved) at the specified index (4 per 32-bit word)
 void packValue(bwt_t * passBWT, int passSeqIdx, bwtint_t passValue) {
@@ -99,8 +97,8 @@ bwt_t * bwt_pac2bwt(const char *fn_pac) {
 	return bwt;
 }
 
-// the "pac2bwt" command; IMPORTANT: bwt generated at this step CANNOT be used with BWA. bwtupdate is required! 
-int bwa_pac2bwt(int argc, char *argv[]) { 
+// 'pac2bwt' command entry point. (Note: bwt generated at this step CANNOT be used with BWA, bwtupdate required)
+int command_pac2bwt(int argc, char *argv[]) {
 	bwt_t *bwt;
 	int c, use_is = 1;
 	while ((c = getopt(argc, argv, "d")) >= 0) {
@@ -156,8 +154,8 @@ void bwt_bwtupdate_core(bwt_t *bwt) {
 	bwt->bwt = bwtBuf;
 }
 
-// the "bwtupdate" command
-int bwa_bwtupdate(int argc, char *argv[]) {
+// 'bwtupdate' command entry point.
+int command_bwtupdate(int argc, char *argv[]) {
 	bwt_t *bwt;
 	if (argc < 2) {
 		fprintf(stderr, "Usage: bwa bwtupdate <the.bwt>\n");
@@ -170,8 +168,8 @@ int bwa_bwtupdate(int argc, char *argv[]) {
 	return 0;
 }
 
-// the "bwt2sa" command
-int bwa_bwt2sa(int argc, char *argv[]) {
+// 'bwt2sa' command entry point.
+int command_bwt2sa(int argc, char *argv[]) {
 	bwt_t *bwt;
 	int c, sa_intv = 32;
 	while ((c = getopt(argc, argv, "i:")) >= 0) {
@@ -191,8 +189,8 @@ int bwa_bwt2sa(int argc, char *argv[]) {
 	return 0;
 }
 
-// Primary Index command.  Create protein file, pack, construct BWT, interleave, create SA, repack
-int bwa_index(int argc, char *argv[]) { 
+// 'index' command entry point.  Create protein file, pack, construct BWT, interleave, create SA, repack
+int command_index(int argc, char *argv[]) {
 	bwt_t *bwt;
 	char * prefix, * proName, * pacName, * bwtName, * saName;
 	gzFile fp;
