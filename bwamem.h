@@ -21,6 +21,7 @@ typedef struct __smem_i smem_i;
 #define MEM_F_REF_HDR	0x100
 #define MEM_F_SOFTCLIP  0x200
 #define MEM_F_SMARTPE   0x400
+#define MEM_F_BRUTEORF  0x800
 
 typedef struct {
 	int a, b;               // match score and mismatch penalty
@@ -77,7 +78,7 @@ typedef struct {
 	uint64_t hash;
 } mem_alnreg_t;
 
-typedef struct { size_t n, m; mem_alnreg_t *a; } mem_alnreg_v;
+typedef struct { size_t n, m; int active; mem_alnreg_t *a; } mem_alnreg_v;
 
 typedef struct {
 	int low, high;   // lower and upper bounds within which a read pair is considered to be properly paired
@@ -97,9 +98,27 @@ typedef struct { // This struct is only used for the convenience of API.
 	int score, sub, alt_sc;
 } mem_aln_t;
 
+typedef struct {
+	bwtintv_v mem, mem1, *tmpv[2];
+} smem_aux_t;
+
+typedef struct {
+	const mem_opt_t *opt;
+	const bwt_t *bwt;
+	const bntseq_t *bns;
+	const uint8_t *pac;
+	const mem_pestat_t *pes;
+	smem_aux_t **aux;
+	bseq1_t *seqs;
+	mem_alnreg_v *regs;
+	int64_t n_processed;
+} worker_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+	void filterCompetingAln(worker_t * passWorker, int passCount);
 
 	smem_i *smem_itr_init(const bwt_t *bwt);
 	void smem_itr_destroy(smem_i *itr);

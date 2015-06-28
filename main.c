@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
 	if (argc < 2) return renderUsage();
 	if (strcmp(argv[1], "index") == 0) ret = command_index(argc-1, argv+1);
 	else if (strcmp(argv[1], "align") == 0) ret = command_align(argc-1, argv+1);
-	else if (strcmp(argv[1], "pemerge") == 0) ret = main_pemerge(argc-1, argv+1);
+	//else if (strcmp(argv[1], "pemerge") == 0) ret = main_pemerge(argc-1, argv+1);
 	else if (strcmp(argv[1], "fa2pac") == 0) ret = bwa_fa2pac(argc-1, argv+1);
 	else if (strcmp(argv[1], "pac2bwt") == 0) ret = command_pac2bwt(argc-1, argv+1);
 	else if (strcmp(argv[1], "bwtupdate") == 0) ret = command_bwtupdate(argc-1, argv+1);
@@ -73,9 +73,8 @@ int renderUsage() {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Program: PALADIN (Protein Alignment and Detection Interface)\n\n");
 	fprintf(stderr, "Usage:   paladin <command> [options]\n\n");
-	fprintf(stderr, "Command: index         index sequences in FASTA format with GTF/GFF annotations\n");
+	fprintf(stderr, "Command: index         index NT or AA sequences in FASTA format\n");
 	fprintf(stderr, "         align         align single end read sequences\n");
-	fprintf(stderr, "         pemerge       merge overlapping paired ends (EXPERIMENTAL)\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "         shm           manage indices in shared memory\n");
 	fprintf(stderr, "         fa2pac        convert FASTA to PAC format\n");
