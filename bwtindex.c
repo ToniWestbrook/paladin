@@ -7,6 +7,7 @@
 #include <time.h>
 #include <zlib.h>
 #include "bwtindex.h"
+#include "protein.h"
 #include "bntseq.h"
 #include "utils.h"
 
@@ -19,16 +20,16 @@
 #endif
 
 // Pack the given byte value into the BWT (pre-interleaved) at the specified index (4 per 32-bit word)
-void packValue(bwt_t * passBWT, int passSeqIdx, bwtint_t passValue) {
-	int packShift;
+void packValue(bwt_t * passBWT, int64_t passSeqIdx, bwtint_t passValue) {
+	uint64_t packShift;
 
 	packShift = (8 * (sizeof(uint32_t) - 1)) - (8 * (passSeqIdx % sizeof(uint32_t)));
 	passBWT->bwt[passSeqIdx / sizeof(uint32_t)] |= (passValue << packShift);
 }
 
 // Unpack byte from from the BWT (pre-interleaved) at the specified index
-ubyte_t unpackValue(bwt_t * passBWT, int passSeqIdx) {
-	int packShift;
+ubyte_t unpackValue(bwt_t * passBWT, int64_t passSeqIdx) {
+	uint64_t packShift;
 
 	packShift = (8 * (sizeof(uint32_t) - 1)) - (8 * (passSeqIdx % sizeof(uint32_t)));
 	return (passBWT->bwt[passSeqIdx / sizeof(uint32_t)] >> packShift) & 0xFF;
@@ -52,7 +53,7 @@ int64_t bwa_seq_len(const char *fn_pac) {
 bwt_t * bwt_pac2bwt(const char *fn_pac) {
 	bwt_t *bwt;
 	ubyte_t * packedBuf, * unpackedBuf;
-	int i, packedSize;
+	int64_t i, packedSize;
 	FILE *fp;
 
 	// Initialize BWT structure
@@ -100,15 +101,14 @@ bwt_t * bwt_pac2bwt(const char *fn_pac) {
 // 'pac2bwt' command entry point. (Note: bwt generated at this step CANNOT be used with BWA, bwtupdate required)
 int command_pac2bwt(int argc, char *argv[]) {
 	bwt_t *bwt;
-	int c, use_is = 1;
+	int c;
 	while ((c = getopt(argc, argv, "d")) >= 0) {
 		switch (c) {
-		case 'd': use_is = 0; break;
 		default: return 1;
 		}
 	}
 	if (optind + 2 > argc) {
-		fprintf(stderr, "Usage: bwa pac2bwt [-d] <in.pac> <out.bwt>\n");
+		fprintf(stderr, "Usage: bwa pac2bwt <in.pac> <out.bwt>\n");
 		return 1;
 	}
 	bwt = bwt_pac2bwt(argv[optind]);
@@ -119,7 +119,7 @@ int command_pac2bwt(int argc, char *argv[]) {
 
 // Interleave occurrence counts into the BWT at specified interval for efficient search
 void bwt_bwtupdate_core(bwt_t *bwt) {
-	bwtint_t i, k, counts[VALUE_DOMAIN], n_occ;
+	int64_t i, k, counts[VALUE_DOMAIN], n_occ;
 	uint32_t * bwtBuf;
 
 	// Initialize counts array
@@ -194,9 +194,37 @@ int command_index(int argc, char *argv[]) {
 	bwt_t *bwt;
 	char * prefix, * proName, * pacName, * bwtName, * saName;
 	gzFile fp;
+	char c;
+	int indexType, valid;
 	clock_t t;
-	int64_t l_pac;
 
+	// Parse arguments
+	valid = 0;
+	indexType = -1;
+
+	while ((c = getopt(argc, argv, "t:")) >= 0) {
+		if (c == 't') indexType = atoi(optarg);
+	}
+
+	// Check for valid combinations
+	if ((indexType == 0) && (argc - optind == 2)) valid = 1;
+	if ((indexType == 1) && (argc - optind == 1)) valid = 1;
+	if ((indexType == 2) && (argc - optind == 1)) valid = 1;
+	if ((indexType == 3) && (argc - optind == 1)) valid = 1;
+
+	if (!valid) {
+		fprintf(stderr, "\n");
+		fprintf(stderr, "Usage: paladin index [options] <reference.fasta> [annotation.gff]\n\n");
+		fprintf(stderr, "Algorithm options:\n\n");
+		fprintf(stderr, "       -t<#>    Reference type:\n");
+		fprintf(stderr, "                   0: Reference contains nucleotide sequences (requires annotation)\n");
+		fprintf(stderr, "                   1: Reference contains nucleotide sequences (coding only)\n");
+		fprintf(stderr, "                   2: Reference contains protein sequences\n");
+		fprintf(stderr, "                   3: Test Reference\n");
+		fprintf(stderr, "\n");
+		return 1;
+	}    
+   
 	// Setup filenames
 	prefix = malloc(strlen(argv[optind]));
 	proName = malloc(strlen(argv[optind]) + 5);
@@ -212,30 +240,46 @@ int command_index(int argc, char *argv[]) {
 
 	// Create Protein Sequence
 	t = clock();
-	fprintf(stderr, "[panda_protein] Translating protein sequence...\n");
-	//writeIndexProtein(prefix, proName, argv[optind+1]);
-	writeIndexMultiProtein(prefix, proName, argv[optind+1]);
-	fprintf(stderr, "[bwa_protein] %.2f seconds elapse.\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "[paladin_index] Translating protein sequence... ");
+
+	switch (indexType) {
+		case 0:
+			// Nucleotide sequence and annotation
+			writeIndexMultiProtein(prefix, proName, argv[optind+1]); break;
+		case 1:
+			// Nucleotide sequence, coding only
+			writeIndexMultiCodingProtein(prefix, proName); break;
+		case 2:
+			// Protein sequence
+			writeIndexDirectProtein(prefix, proName);
+			sprintf(proName, "%s", argv[optind]);
+			break;
+		case 3:
+			// Testing
+			writeIndexTestProtein(prefix, proName); break;
+	}
+
+	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	// Pack FASTA
 	fp = xzopen(proName, "r");
 	t = clock();
-	fprintf(stderr, "[panda_index] Packing protein sequence... ");
-	l_pac = bns_fasta2bntseq(fp, prefix, 0);
+	fprintf(stderr, "[paladin_index] Packing protein sequence... ");
+	bns_fasta2bntseq(fp, prefix, 0);
 	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	err_gzclose(fp);
 
 	// Construct BWT
 	t = clock();
-	fprintf(stderr, "[panda_index] Constructing BWT for the packed sequence...\n");
+	fprintf(stderr, "[paladin_index] Constructing BWT for the packed sequence... ");
 	bwt = bwt_pac2bwt(pacName);
 	bwt_dump_bwt(bwtName, bwt);
 	bwt_destroy(bwt);
-	fprintf(stderr, "[panda_index] %.2f seconds elapse.\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	// Update BWT
 	t = clock();
-	fprintf(stderr, "[panda_index] Update BWT... ");
+	fprintf(stderr, "[paladin_index] Update BWT... ");
 	bwt = bwt_restore_bwt(bwtName);
 	bwt_bwtupdate_core(bwt);
 	bwt_dump_bwt(bwtName, bwt);
@@ -245,14 +289,14 @@ int command_index(int argc, char *argv[]) {
 	// Pack Forward-Only FASTA
 	fp = xzopen(proName, "r");
 	t = clock();
-	fprintf(stderr, "[panda_index] Pack forward-only protein sequence... ");
-	l_pac = bns_fasta2bntseq(fp, prefix, 1);
+	fprintf(stderr, "[paladin_index] Pack forward-only protein sequence... ");
+	bns_fasta2bntseq(fp, prefix, 1);
 	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	err_gzclose(fp);
 
 	// Construct Suffix Array from FM-Index and Occurrences
 	t = clock();
-	fprintf(stderr, "[panda_index] Construct SA from BWT and Occ... ");
+	fprintf(stderr, "[paladin_index] Construct SA from BWT and Occ... ");
 	bwt = bwt_restore_bwt(bwtName);
 	bwt_cal_sa(bwt, 32);
 	bwt_dump_sa(saName, bwt);

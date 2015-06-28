@@ -84,16 +84,52 @@ mem_opt_t *mem_opt_init()
 	return o;
 }
 
+void filterCompetingAln(worker_t * passWorker, int passCount) {
+	int seqIdx, alnIdx, bestIdx;
+	int currentSeq, readSeq;
+	int seqTotal, bestTotal;
+
+	currentSeq = 0;
+	bestIdx = 0;
+	bestTotal = 0;
+
+	// Iterate through each sequence and alignment
+	for (seqIdx = 0 ; seqIdx < passCount - 1 ; seqIdx++) {
+		// Check if we're in a new sequence or in an alternate frame
+		sscanf(passWorker->seqs[seqIdx].name, "%d:", &readSeq);
+		if (readSeq != currentSeq) {
+			// New sequence - mark best as active in previous sequence
+			passWorker->regs[bestIdx].active = 1;
+
+			// Reset search to current sequence
+			currentSeq = readSeq;
+			bestTotal = 0;
+			bestIdx = seqIdx;
+		}
+
+		// Aggregate all score totals for this sequence
+		seqTotal = 0;
+		for (alnIdx = 0 ; alnIdx < passWorker->regs[seqIdx].n ; alnIdx++) {
+			seqTotal += passWorker->regs[seqIdx].a[alnIdx].truesc;
+		}
+
+		// Check if current alignment is best so far
+		if (seqTotal > bestTotal) {
+			bestTotal = seqTotal;
+			bestIdx = seqIdx;
+		}
+	}
+
+	// Filter final sequence
+	passWorker->regs[bestIdx].active = 1;
+}
+
 /***************************
  * Collection SA invervals *
  ***************************/
 
 #define intv_lt(a, b) ((a).info < (b).info)
 KSORT_INIT(mem_intv, bwtintv_t, intv_lt)
-
-typedef struct {
-	bwtintv_v mem, mem1, *tmpv[2];
-} smem_aux_t;
 
 static smem_aux_t *smem_aux_init()
 {
@@ -1015,7 +1051,13 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 		if (l && !p->is_alt && q->mapq > aa.a[0].mapq) q->mapq = aa.a[0].mapq;
 		++l;
 	}
-	if (aa.n == 0) { // no alignments good enough; then write an unaligned record
+
+	// Skip alignments filtered by competing frames
+	if (!(a->active)) {
+		for (k = 0; k < aa.n; ++k) free(aa.a[k].cigar);
+		if (aa.n > 0) free(aa.a);
+	}
+	else if (aa.n == 0) { // no alignments good enough; then write an unaligned record
 		mem_aln_t t;
 		t = mem_reg2aln(opt, bns, pac, s->l_seq, s->seq, 0);
 		t.flag |= extra_flag;
@@ -1038,7 +1080,6 @@ mem_alnreg_v mem_align1_core(const mem_opt_t *opt, const bwt_t *bwt, const bntse
 	int i;
 	mem_chain_v chn;
 	mem_alnreg_v regs;
-
 
 	for (i = 0; i < l_seq; ++i) {
 		// Hash IUPAC value
@@ -1073,7 +1114,12 @@ mem_alnreg_v mem_align1_core(const mem_opt_t *opt, const bwt_t *bwt, const bntse
 		if (p->rid >= 0 && bns->anns[p->rid].is_alt)
 			p->is_alt = 1;
 	}
+
+	// Mark as filtered by default
+	regs.active = 0;
+
 	return regs;
+
 }
 
 mem_aln_t mem_reg2aln(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, int l_query, const char *query_, const mem_alnreg_t *ar)
@@ -1151,17 +1197,6 @@ mem_aln_t mem_reg2aln(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *
 	return a;
 }
 
-typedef struct {
-	const mem_opt_t *opt;
-	const bwt_t *bwt;
-	const bntseq_t *bns;
-	const uint8_t *pac;
-	const mem_pestat_t *pes;
-	smem_aux_t **aux;
-	bseq1_t *seqs;
-	mem_alnreg_v *regs;
-	int64_t n_processed;
-} worker_t;
 
 static void worker1(void *data, int i, int tid)
 {
@@ -1223,6 +1258,10 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 		if (pes0) memcpy(pes, pes0, VALUE_DOMAIN * sizeof(mem_pestat_t)); // if pes0 != NULL, set the insert-size distribution as pes0
 		else mem_pestat(opt, bns->l_pac, n, w.regs, pes); // otherwise, infer the insert size distribution from data
 	}
+
+	// Filter competing alignments from multi-frame encoding during ORF detection process
+	filterCompetingAln(&w, n);
+
 	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n); // generate alignment
 	free(w.regs);
 	if (bwa_verbose >= 3)

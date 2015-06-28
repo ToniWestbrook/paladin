@@ -97,7 +97,8 @@ int command_align(int argc, char *argv[]) {
 	void *ko = 0, *ko2 = 0;
 	mem_pestat_t pes[VALUE_DOMAIN];
 	ktp_aux_t aux;
-	char * proName;
+	char indexInfo;
+	char * readsProName, * indexProName;
 
 	memset(&aux, 0, sizeof(ktp_aux_t));
 	memset(pes, 0, VALUE_DOMAIN * sizeof(mem_pestat_t));
@@ -105,7 +106,7 @@ int command_align(int argc, char *argv[]) {
 
 	aux.opt = opt = mem_opt_init();
 	memset(&opt0, 0, sizeof(mem_opt_t));
-	while ((c = getopt(argc, argv, "1epaFMCSPVYjk:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epabFMCSPVYjk:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'o') opt->min_orf_len = atoi(optarg);
 		else if (c == '1') no_mt_io = 1;
@@ -125,6 +126,7 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'F') opt->flag |= MEM_F_ALN_REG;
 		else if (c == 'Y') opt->flag |= MEM_F_SOFTCLIP;
 		else if (c == 'V') opt->flag |= MEM_F_REF_HDR;
+		else if (c == 'b') opt->flag |= MEM_F_BRUTEORF;
 		else if (c == 'c') opt->max_occ = atoi(optarg), opt0.max_occ = 1;
 		else if (c == 'd') opt->zdrop = atoi(optarg), opt0.zdrop = 1;
 		else if (c == 'v') bwa_verbose = atoi(optarg);
@@ -212,12 +214,12 @@ int command_align(int argc, char *argv[]) {
 	if (opt->n_threads < 1) opt->n_threads = 1;
 	if (optind + 1 >= argc || optind + 3 < argc) {
 		fprintf(stderr, "\n");
-		fprintf(stderr, "Usage: bwa mem [options] <idxbase> <in1.fq> [in2.fq]\n\n");
+		fprintf(stderr, "Usage: paladin mem [options] <idxbase> <in.fq>\n\n");
 		fprintf(stderr, "Algorithm options:\n\n");
 		fprintf(stderr, "       -t INT        number of threads [%d]\n", opt->n_threads);
 		fprintf(stderr, "       -k INT        minimum seed length [%d]\n", opt->min_seed_len);
 		fprintf(stderr, "       -o INT        minimum ORF length accepted during protein detection [%d]\n", opt->min_orf_len);
-		fprintf(stderr, "       -w INT        band width for banded alignment [%d]\n", opt->w);
+		fprintf(stderr, "       -o INT        minimum ORF length accepted during protein detection [%d]\n", opt->min_orf_len);
 		fprintf(stderr, "       -d INT        off-diagonal X-dropoff [%d]\n", opt->zdrop);
 		fprintf(stderr, "       -r FLOAT      look for internal seeds inside a seed longer than {-k} * FLOAT [%g]\n", opt->split_factor);
 		fprintf(stderr, "       -y INT        seed occurrence for the 3rd round seeding [%ld]\n", (long)opt->max_mem_intv);
@@ -226,6 +228,7 @@ int command_align(int argc, char *argv[]) {
 		fprintf(stderr, "       -D FLOAT      drop chains shorter than FLOAT fraction of the longest overlapping chain [%.2f]\n", opt->drop_ratio);
 		fprintf(stderr, "       -W INT        discard a chain if seeded bases shorter than INT [0]\n");
 		fprintf(stderr, "       -m INT        perform at most INT rounds of mate rescues for each read [%d]\n", opt->max_matesw);
+		fprintf(stderr, "       -b            brute force ORF detection\n", opt->w);
 		fprintf(stderr, "       -S            skip mate rescue\n");
 		fprintf(stderr, "       -P            skip pairing; mate rescue performed unless -S also in use\n");
 		fprintf(stderr, "       -e            discard full-length exact matches\n");
@@ -310,18 +313,21 @@ int command_align(int argc, char *argv[]) {
 	if (aux.idx == 0) {
 		if ((aux.idx = bwa_idx_load(argv[optind], BWA_IDX_ALL)) == 0) return 1; // FIXME: memory leak
 	} else if (bwa_verbose >= 3)
-		fprintf(stderr, "[M::%s] load the bwa index from shared memory\n", __func__);
+		fprintf(stderr, "[M::%s] load the paladin index from shared memory\n", __func__);
 	if (ignore_alt)
 		for (i = 0; i < aux.idx->bns->n_seqs; ++i)
 			aux.idx->bns->anns[i].is_alt = 0;
 
 
 	// Detect proteins and write to .pro file
-	proName = malloc(strlen(argv[optind + 1]) + 5);
-	sprintf(proName, "%s.pro", argv[optind + 1]);
-	writeReadsProtein(argv[optind + 1], proName, opt);
+	indexProName = malloc(strlen(argv[optind]) + 5);
+	readsProName = malloc(strlen(argv[optind + 1]) + 5);
+	sprintf(indexProName, "%s.pro", argv[optind]);
+	sprintf(readsProName, "%s.pro", argv[optind + 1]);
+	indexInfo = getIndexHeader(indexProName);
+	writeReadsProtein(argv[optind + 1], readsProName, opt, indexInfo);
 
-	ko = kopen(proName, &fd);
+	ko = kopen(readsProName, &fd);
 	if (ko == 0) {
 		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to open file `%s'.\n", __func__, argv[optind + 1]);
 		return 1;
@@ -347,7 +353,8 @@ int command_align(int argc, char *argv[]) {
 		bwa_print_sam_hdr(aux.idx->bns, hdr_line);
 	aux.actual_chunk_size = fixed_chunk_size > 0? fixed_chunk_size : opt->chunk_size * opt->n_threads;
 	kt_pipeline(no_mt_io? 1 : 2, process, &aux, 3);
-	free(proName);
+	free(indexProName);
+	free(readsProName);
 	free(hdr_line);
 	free(opt);
 	bwa_idx_destroy(aux.idx);

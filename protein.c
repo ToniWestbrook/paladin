@@ -6,10 +6,12 @@
 #include <string.h>
 #include <zlib.h>
 #include <unistd.h>
+#include <math.h>
 #include "protein.h"
 #include "bntseq.h"
 #include "utils.h"
 #include "bwt.h"
+#include "main.h"
 
 #include "kseq.h"
 KSEQ_DECLARE(gzFile)
@@ -76,6 +78,30 @@ void testReadHeader(char * passOrig, char * retNew) {
 	}
 }
 
+// Write header for index pro file
+void writeIndexHeader(FILE * passFilePtr, int passProtein, int passMulti) {
+	fprintf(passFilePtr, ">NT=%d:MF=%d:VER=%s\n", passProtein, passMulti, PACKAGE_VERSION);
+}
+
+// Get header info from index pro file
+char getIndexHeader(char * passFile) {
+	FILE * filePtr;
+	int readNT, readMF;
+	char retValue;
+	
+	// Open file and read header information
+	filePtr = fopen(passFile, "r");
+	
+	fscanf(filePtr, ">NT=%d:MF=%d", &readNT, &readMF);
+	fclose(filePtr);
+	
+	retValue = 0;
+	if (readNT) retValue |= INDEX_FLAG_NT;
+	if (readMF) retValue |= INDEX_FLAG_MF;
+
+	return retValue;
+}
+
 // Construct 6-bit codon from 3 ASCII characters
 unsigned char encodeCodon(unsigned char * passSequence, int passStrand) {
 	unsigned char retCodon;
@@ -127,16 +153,15 @@ int convertToAA(char * passSequence, struct CDS * passCDS, char ** retSequence, 
 		// Encode codon
 		currentCodon = encodeCodon(passSequence + seqStart + (passCDS->strand * nucIdx), passCDS->strand);
 		
-		// If ambiguous nucleotides are present, assign ambiguous AA and exit
+		// If ambiguous nucleotides are present, assign ambiguous AA
 		if (currentCodon == 0xFF) {
 			(*retSequence)[aaIdx] = 'X';
-			break;
 		}
 
 		// Hash to amino acid IUPAC
 		(*retSequence)[aaIdx] = codon_aa_hash[currentCodon];
 	}
-
+	
 	return 0;
 }
 
@@ -184,22 +209,24 @@ void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned l
 }
 
 // Filter history array for ORF selection parameters, return corresponding CDS array
-void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], int passMinORF, struct CDS * * retCDS, unsigned long * retCount) {
-	unsigned long srcFrameIdx, srcHistoryIdx, dstFrameIdx, dstHistoryIdx, totalSize;
-	unsigned long srcStart, srcEnd, dstStart, dstEnd, srcLen, dstLen;
-	int validEntry;
+void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct CDS * * retCDS, unsigned long * retCount) {
+	unsigned long srcFrameIdx, srcHistoryIdx;
+	unsigned long srcStart, srcEnd, totalSize;
+	int relStart, validEntry;
 
-	// Start by allocating potential CDS records per entry in history array
+	// Allocate potential CDS records per entry in history array
 	totalSize = 0;
 	for (srcFrameIdx = 0 ; srcFrameIdx < 6 ; srcFrameIdx++) totalSize += passHistorySize[srcFrameIdx];
+
 	*retCDS = calloc(totalSize, sizeof(struct CDS));
 	*retCount = 0;
+	relStart = -1;
 
 	// Iterate through each entry in each reading frame
 	for (srcFrameIdx = 0 ; srcFrameIdx < 6 ; srcFrameIdx++) {
 		for (srcHistoryIdx = 0 ; srcHistoryIdx < passHistorySize[srcFrameIdx] ; srcHistoryIdx++) {
-            // Swap start/stop for reverse direction
-			if (srcFrameIdx < 3) {
+			// Swap start/stop for reverse direction
+			if (passHistory[0][srcFrameIdx][srcHistoryIdx] < passHistory[1][srcFrameIdx][srcHistoryIdx]) {
 				srcStart = passHistory[0][srcFrameIdx][srcHistoryIdx];
 				srcEnd = passHistory[1][srcFrameIdx][srcHistoryIdx];
 			}
@@ -208,51 +235,20 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], int pa
 				srcEnd = passHistory[0][srcFrameIdx][srcHistoryIdx];
 			}
 
-			srcLen = srcEnd - srcStart + 1;
 			validEntry = 1;
 
-			// Filter minimum ORF size (to be set from command line args)
-			if (srcLen < passMinORF) continue;
+			// Filter minimum ORF size
+			//if (srcLen < passMinORF) continue;
 			
-			// Search for larger overlapping ORFs
-			for (dstFrameIdx = 0 ; dstFrameIdx < 6 ; dstFrameIdx++) {
-				// No need to compare same frame
-				if (srcFrameIdx == dstFrameIdx) continue;
-
-				// Check for larger, overlapping frames
-				for (dstHistoryIdx = 0 ; dstHistoryIdx < passHistorySize[dstFrameIdx] ; dstHistoryIdx++) {
-					if (dstFrameIdx < 3) {
-						dstStart = passHistory[0][dstFrameIdx][dstHistoryIdx];
-						dstEnd = passHistory[1][dstFrameIdx][dstHistoryIdx];
-					}
-					else {
-						dstStart = passHistory[1][dstFrameIdx][dstHistoryIdx];
-						dstEnd = passHistory[0][dstFrameIdx][dstHistoryIdx];
-					}
-
-					dstLen = abs(dstEnd - dstStart) + 1;
-
-					// Compare potential frames that are larger 
-					if (dstLen > srcLen) {
-						// src.start <= dst.start <= src.end
-						if ((srcStart + 0 <= dstStart) && (dstStart <= srcEnd - 0)) validEntry = 0;
-
-						// dst.start <= src.start <= dst.end
-						if ((dstStart + 0  <= srcStart) && (srcStart <= dstEnd - 0)) validEntry = 0;
-
-						if (!validEntry) break;
-					}
-				}
-
-				if (!validEntry) break;
-			}
-
-			// Add CDS record if valid
+			// Add CDS record if valid (current strategy marks all as valid)
 			if (validEntry) {
+				if (relStart < 0) relStart = srcFrameIdx;
+
 				(*retCDS)[*retCount].startIdx = srcStart;
 				(*retCDS)[*retCount].endIdx = srcEnd;
 				(*retCDS)[*retCount].strand = (srcFrameIdx < 3) ? 1 : -1;
-				
+				(*retCDS)[*retCount].relFrame = srcFrameIdx - relStart;
+
 				(*retCount)++;
 			}
 		}
@@ -260,71 +256,161 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], int pa
 }
 
 // Scan nucleotide sequence for all recognized ORFs, return as CDS array
-int getSequenceORF(char * passSequence, unsigned long passLength, int passMinORF, struct CDS * * retCDS, unsigned long * retCount) {
-	unsigned long strandIdx, frameIdx, seqIdx, historyIdx;
-	long * history[2][6], historySize[6], absIdx;
+int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, char passIndexInfo, struct CDS * * retCDS, unsigned long * retCount) {
+	int frameIdx, strandDir, relFrame, searchIdx, highIdx;
+	long * history[2][6], historySize[6], stopCounts[6], stopOrder[6];
+	long gcCount, seqIdx, absIdx;
 	unsigned char currentCodon;
-	int frameStart;
 
-	for (strandIdx = 0 ; strandIdx < 2 ; strandIdx++) {
-		for (frameIdx = 0 ; frameIdx < 3 ; frameIdx++) {
-			// Initialize history (start, end)
-			historyIdx = strandIdx * 3 + frameIdx;
-			historySize[historyIdx] = 0;
-			frameStart = 0;
-			
-			// Iterate through all codons in this read frame
-			for (seqIdx = frameIdx ; seqIdx + 3 < passLength ; seqIdx += 3) {
-				// Calculate absolute index from relative
-				absIdx = seqIdx;
-				if (strandIdx == 1) absIdx = absIdx * -1 + passLength - 1;
+	// Initialize values
+	gcCount = 0;
+	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+		history[0][frameIdx] = NULL;
+		history[1][frameIdx] = NULL;
+		historySize[frameIdx] = 0;
+		stopCounts[frameIdx] = 0;
+		stopOrder[frameIdx] = 0;
+	}
 
-				// Encode codon
-				currentCodon = encodeCodon(passSequence + absIdx, (strandIdx == 0) ? 1 : -1);
+	// Collect statistics (stop codon counts and GC content)
+	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+		strandDir = (frameIdx < 3 ? 1 : -1);
+		relFrame = frameIdx % 3;
 
-				// Scan for start codon (ATG - 0x0E)
-				if (currentCodon == 0x0E) {
-					if (!frameStart) {
-						addORFHistory(history, historySize, historyIdx);
+		// Iterate through all codons in this read frame
+		for (seqIdx = (frameIdx % 3) ; seqIdx + 3 <= passLength ; seqIdx += 3) {
+			// Calculate absolute index from relative
+			absIdx = seqIdx;
+			if (strandDir == -1) absIdx = absIdx * -1 + passLength - 1;
 
-						history[0][historyIdx][historySize[historyIdx] - 1] = absIdx;
-						history[1][historyIdx][historySize[historyIdx] - 1] = getLastORFPos(passLength, strandIdx * 3 + frameIdx) ;
-						frameStart = 1;
-					}
-				}
- 
-				// Scan for stop codon (TAA - 0x30, TAG - 0x32, TGA - 0x38)
-				if ((currentCodon == 0x30) || (currentCodon == 0x32) || (currentCodon == 0x38)) {
-					// Check if our ORF started before the sequence
-					if (!frameStart && (historySize[historyIdx] == 0)) {
-						addORFHistory(history, historySize, historyIdx);
-						history[0][historyIdx][historySize[historyIdx] - 1] = (strandIdx == 0) ? frameIdx : passLength - 1 - frameIdx;
-						frameStart = 1;
-					}
+			// Encode codon
+			currentCodon = encodeCodon(passSequence + absIdx, strandDir);
 
-					// Ignore stop codons outside of ORFs
-					if (frameStart) {
-						history[1][historyIdx][historySize[historyIdx] - 1] = absIdx + ((strandIdx == 0) ? 2 : -2);
-						frameStart = 0;
-					}
-				}
+			// Record occurrence of stop codon (TAA - 0x30, TAG - 0x32, TGA - 0x38)
+			if ((currentCodon == 0x30) || (currentCodon == 0x32) || (currentCodon == 0x38)) {
+				stopCounts[frameIdx]++;
+				stopOrder[frameIdx]++;
 			}
 
-			// Check if entire frame was open
-			if (historySize[historyIdx] == 0) {
-				addORFHistory(history, historySize, historyIdx);
-				history[0][historyIdx][0] = (strandIdx == 0) ? frameIdx : (passLength - 1 - frameIdx);
-				history[1][historyIdx][0] = getLastORFPos(passLength, strandIdx * 3 + frameIdx);
+			// Detect GC content on frame 0
+			if (frameIdx == 0) {
+				if (((currentCodon & 0x03) == 0x01) || ((currentCodon & 0x03) == 0x02)) gcCount++;
+				if (((currentCodon & 0x0C) == 0x04) || ((currentCodon & 0x0C) == 0x08)) gcCount++;
+				if (((currentCodon & 0x30) == 0x10) || ((currentCodon & 0x30) == 0x20)) gcCount++;
+			}
+		}
+	}
+
+	// Use occurrence counts to generate frame order 
+	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+		highIdx = 0;
+
+		for (searchIdx = 0 ; searchIdx < 6 ; searchIdx++) {
+			if (stopOrder[searchIdx] > stopOrder[highIdx]) {
+				highIdx = searchIdx;
+			}
+		}
+
+		// Record order as negatives for inline efficiency, then convert after
+		stopOrder[highIdx] = -5 + frameIdx;
+	}
+
+	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+		stopOrder[frameIdx] *= -1;
+	}
+
+	// All modes iterate through all frames
+	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+		strandDir = (frameIdx < 3 ? 1 : -1);
+		relFrame = frameIdx % 3;
+
+		// Index is multiframe, stop at first ORF
+		if (passIndexInfo & INDEX_FLAG_MF) {
+			if (stopCounts[frameIdx] == 0) {
+				addORFHistory(history, historySize, frameIdx);
+				history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
+				history[1][frameIdx][historySize[frameIdx] - 1] = getLastORFPos(passLength, frameIdx);
+				break;
+			}
+		}
+
+		// Index is single frame, check for algorithm variant
+		else {
+			if (passOptions->flag & MEM_F_BRUTEORF) {
+				// Brute force ORF detection - encode all frames if ORF detected
+				if (stopCounts[frameIdx] == 0) {
+					for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+						strandDir = (frameIdx < 3 ? 1 : -1);
+						relFrame = frameIdx % 3;
+
+						addORFHistory(history, historySize, frameIdx);
+						history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
+						history[1][frameIdx][historySize[frameIdx] - 1] = getLastORFPos(passLength, frameIdx);
+					}
+
+					break;
+				}
+			}
+			else {
+				// Normal ORF detection - check for stop count ordering by GC content
+				if (stopCounts[frameIdx] <= 0) {
+					if ((stopOrder[(frameIdx + 4) % 6] != 0) && (stopOrder[(frameIdx + 5) % 6] != 0)) {
+						addORFHistory(history, historySize, frameIdx);
+						history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
+						history[1][frameIdx][historySize[frameIdx] - 1] = getLastORFPos(passLength, frameIdx);
+					}
+				}
 			}
 		}
 	}
 
 	// Filter, remove overlaps, create CDS array
-	compileORFHistory(history, historySize, passMinORF, retCDS, retCount);
+	compileORFHistory(history, historySize, retCDS, retCount);
 
-	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) free(history[frameIdx / 3][frameIdx % 3]);
+	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+		free(history[0][frameIdx]);
+		free(history[1][frameIdx]);
+	}
 
 	return 0;
+
+
+		// 63%
+		//if ((stopCounts[(frameIdx + 0) % 6] <= 1) &&
+		//	((stopOrder[(frameIdx + 4) % 6] != 0) && (stopOrder[(frameIdx + 5) % 6] != 0))){
+
+
+		// 50%
+		//if (((stopOrder[(frameIdx + 0) % 6] == 5) && (stopOrder[(frameIdx + 3) % 6] == 4)) ||
+		//	((stopOrder[(frameIdx + 0) % 6] == 4) && (stopOrder[(frameIdx + 3) % 6] == 5))){
+
+
+		// First full ORF
+//		if ((stopCounts[frameIdx] == 0)) {
+/*			(stopOrder[(frameIdx + 0) % 6] <= 1) && (stopOrder[(frameIdx + 3) % 6] <= 1) &&
+			(stopOrder[(frameIdx + 4) % 6] >= 4) && (stopOrder[(frameIdx + 5) % 6] >= 4) &&
+			((stopOrder[(frameIdx + 1) % 6] == 2) || (stopOrder[(frameIdx + 1) % 6] == 3)) &&
+			((stopOrder[(frameIdx + 2) % 6] == 2) || (stopOrder[(frameIdx + 2) % 6] == 3))) {*/
+		//if ((stopCounts[(frameIdx + 0) % 6] <= 1) && (stopCounts[(frameIdx + 3) % 6] <= 1)) {
+
+		//if ((stopCounts[frameIdx] < 1) &&
+			//((stopOrder[frameIdx] == 0) || (stopOrder[frameIdx] == 1))){ //&&
+			//((stopCounts[(frameIdx + 3) % 6] == 0) || (stopCounts[(frameIdx + 3) % 6] == 1))) {// &&
+			//((stopCounts[(frameIdx + 2) % 6] == 2) || (stopCounts[(frameIdx + 2) % 6] == 3)) &&
+			//(stopCounts[(frameIdx + 2) % 6] == 2) && (stopCounts[(frameIdx + 4) % 6] == 5)) {
+			//((stopOrder[(frameIdx + 4) % 6] == 4) || (stopOrder[(frameIdx + 4) % 6] == 5))) {
+
+	// Do something with this
+	/*
+	if (!stopFound) {
+		addORFHistory(history, historySize, historyIdx);
+		history[0][historyIdx][historySize[historyIdx] - 1] = (strandIdx == 0) ? frameIdx : passLength - 1 - frameIdx;
+		history[1][historyIdx][historySize[historyIdx] - 1] = (strandIdx == 0) ? passLength - 4 + frameIdx : frameIdx;
+		compileORFHistory(history, historySize, passMinORF, retCDS, retCount);
+		return 0;
+	}
+	*/
+
 }
 
 // Iterate through GFF annotation file, return next available CDS entry
@@ -353,11 +439,11 @@ int getNextCDS(FILE * passFile, struct CDS * retCDS, unsigned long * retLine) {
 			retCDS->strand = (field[6][0] == '+') ? 1 : -1;
 			retCDS->phase = atoi(field[7]);
 
-			// Quick code to insert description, fix this up
+			// Fixup description
 			sprintf(retCDS->description, "%s", field[8]);
-			int charIdx;
-			for (charIdx = 0 ; charIdx < strlen(retCDS->description) ; charIdx++) {
-				if (retCDS->description[charIdx] == ' ') retCDS->description[charIdx] = '_';
+			for (scanIdx = 0 ; scanIdx < strlen(retCDS->description) ; scanIdx++) {
+				if (retCDS->description[scanIdx] == ' ') retCDS->description[scanIdx] = '_';
+				if (retCDS->description[scanIdx] == 0x0A || retCDS->description[scanIdx] == 0x0D) retCDS->description[scanIdx] = 0;
 			}
 
 			return 1;
@@ -381,6 +467,9 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
 	inputAnnPtr = fopen(passAnnName, "r");
 	outputPtr = fopen(passProName, "w");
 
+	// Write index type header
+	writeIndexHeader(outputPtr, 1, 0);
+  
 	// Read in 1st sequence data
 	seq = kseq_init(inputSeqPtr);
 	kseq_read(seq);
@@ -389,7 +478,9 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
 	currentLine = 0;
 	while (getNextCDS(inputAnnPtr, &currentCDS, &currentLine)) {
 		convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
-		fprintf(outputPtr, ">%d\n%.*s\n", currentLine,  outputSize, outputBuffer);
+
+		// Line ID of CDS : Sequence Header
+		fprintf(outputPtr, ">%lu:0:%s\n%.*s\n", currentLine, currentCDS.description, outputSize, outputBuffer);
 		free(outputBuffer);
 	}
 
@@ -402,19 +493,22 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
 	return 0;
 }
 
-// Convert the given reference nucleotide FASTA and GFF file to a protein FASTA file (for all 6 frames) - experimental
+// Convert the given reference nucleotide FASTA and GFF file to a protein FASTA file (for all 6 frames)
 int writeIndexMultiProtein(const char * passPrefix, const char * passProName, const char * passAnnName) {
         struct CDS currentCDS;
-        gzFile  inputSeqPtr;
+        gzFile inputSeqPtr;
         FILE * inputAnnPtr, * outputPtr;
         char * outputBuffer;
         kseq_t * seq;
-        unsigned long outputSize, currentLine;
+        unsigned long outputSize, currentLine, frameIdx;
 
         // Prepare file handles
         inputSeqPtr = xzopen(passPrefix, "r");
         inputAnnPtr = fopen(passAnnName, "r");
         outputPtr = fopen(passProName, "w");
+
+    	// Write index type header
+    	writeIndexHeader(outputPtr, 1, 1);
 
         // Read in 1st sequence data
         seq = kseq_init(inputSeqPtr);
@@ -422,16 +516,19 @@ int writeIndexMultiProtein(const char * passPrefix, const char * passProName, co
 
         // Iterate through each CDS sequence in the annotation file
         currentLine = 0;
-        int test;
         while (getNextCDS(inputAnnPtr, &currentCDS, &currentLine)) {
-                for (test = 0 ; test < 6 ; test++) {
-                        currentCDS.startIdx++;
-			currentCDS.endIdx++;
-                        if (test == 3) currentCDS.strand *= -1;
-			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
-			fprintf(outputPtr, ">%d\n%.*s\n", currentLine,  outputSize, outputBuffer);
-			free(outputBuffer);
-		}
+        	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+				convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+
+				// Line ID of CDS : Frame : Sequence Header
+				fprintf(outputPtr, ">%lu:%d:%s\n%.*s\n", currentLine, frameIdx, currentCDS.description, outputSize, outputBuffer);
+				free(outputBuffer);
+
+                currentCDS.startIdx++;
+				currentCDS.endIdx++;
+				if (frameIdx == 2) currentCDS.strand *= -1;
+
+			}
         }
 
         // Close files
@@ -443,14 +540,140 @@ int writeIndexMultiProtein(const char * passPrefix, const char * passProName, co
         return 0;
 }
 
+int writeIndexMultiCodingProtein(const char * passPrefix, const char * passProName) {
+    struct CDS currentCDS;
+    gzFile  inputSeqPtr;
+    FILE * outputPtr;
+    char * outputBuffer;
+    kseq_t * seq;
+    unsigned long outputSize, currentLine, frameIdx;
+
+    // Prepare file handles
+    inputSeqPtr = xzopen(passPrefix, "r");
+    outputPtr = fopen(passProName, "w");
+
+	// Write index type header
+	writeIndexHeader(outputPtr, 1, 1);
+
+    // Iterate through each sequence
+    seq = kseq_init(inputSeqPtr);
+    currentLine = 0;
+
+    while (kseq_read(seq) > 0) {
+            for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+            	if (frameIdx < 3) {
+                    currentCDS.startIdx = (frameIdx % 3);
+                    currentCDS.endIdx = getLastORFPos(seq->seq.l, frameIdx);
+                    currentCDS.strand = 1;
+                    currentCDS.phase = 0;
+            	}
+            	else {
+                    currentCDS.startIdx = getLastORFPos(seq->seq.l, frameIdx);
+                    currentCDS.endIdx = seq->seq.l - 1 - (frameIdx % 3);
+                    currentCDS.strand = -1;
+                    currentCDS.phase = 0;
+            	}
+
+				convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+
+				// Line ID of CDS : Frame : Sequence Header
+				fprintf(outputPtr, ">%lu:%d:%s\n%.*s\n", currentLine, frameIdx, seq->name.s, outputSize, outputBuffer);
+				free(outputBuffer);
+            }
+
+            currentLine++;
+    }
+
+    // Close files
+    fflush(outputPtr);
+    err_gzclose(inputSeqPtr);
+    err_fclose(outputPtr);
+
+    return 0;
+}
+
+int writeIndexDirectProtein(const char * passPrefix, const char * passProName) {
+	FILE * outputPtr;
+
+	outputPtr = fopen(passProName, "w");
+
+	// Write index type header
+	writeIndexHeader(outputPtr, 0, 0);
+
+    // Close file
+    fflush(outputPtr);
+    err_fclose(outputPtr);
+
+    return 0;
+}
+
+// This is a function use for testing - to be removed in final code
+// Currently writes GC content to sequence header in 2nd position
+int writeIndexTestProtein(const char * passPrefix, const char * passProName) {
+    struct CDS currentCDS;
+    gzFile  inputSeqPtr;
+    FILE * outputPtr;
+    char * outputBuffer;
+    kseq_t * seq;
+    int idx, gcCount;
+    unsigned long outputSize, currentLine, frameIdx;
+
+    // Prepare file handles
+    inputSeqPtr = xzopen(passPrefix, "r");
+    outputPtr = fopen(passProName, "w");
+
+    // Iterate through each sequence
+    seq = kseq_init(inputSeqPtr);
+    currentLine = 0;
+
+    while (kseq_read(seq) > 0) {
+
+            gcCount = 0;
+            for (idx = 0 ; idx < seq->seq.l ; idx++) {
+               if (seq->seq.s[idx] == 'G' || seq->seq.s[idx] == 'C') gcCount++; 
+            }
+   
+            gcCount = gcCount * 100 / seq->seq.l;
+
+            for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+                    currentCDS.startIdx = (frameIdx % 3);
+                    currentCDS.endIdx = seq->seq.l - 1 - 3 + (frameIdx % 3);
+                    currentCDS.strand = (frameIdx < 3 ? 1 : -1);
+                    currentCDS.phase = 0;
+
+                    convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+
+        			// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
+                    fprintf(outputPtr, ">%lu:%d:%d:%s\n%.*s\n", currentLine, frameIdx, gcCount, seq->name.s, outputSize, outputBuffer);
+                    free(outputBuffer);
+            }
+
+            currentLine++;
+    }
+
+    // Close files
+    fflush(outputPtr);
+    err_gzclose(inputSeqPtr);
+    err_fclose(outputPtr);
+
+    return 0;
+}
+
+
 // Detects ORFs in the given nucleotide FASTA file and converts to a protein FASTA file
-int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt_t * passOptions) {
+int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt_t * passOptions, char passIndexInfo) {
 	struct CDS * orfList;
 	gzFile inputSeqPtr;
 	FILE * outputPtr;
  	char * outputBuffer;
 	kseq_t * seq;
 	unsigned long seqIdx, outputSize, orfCount, orfIdx;
+
+	// Check for incompatible combinations
+	if ((passOptions->flag & MEM_F_BRUTEORF) && (passIndexInfo & INDEX_FLAG_MF)) {
+		fprintf(stderr, "[paladin_align] Brute force ORF detection redundant to MF index, disabling...\n");
+		passOptions->flag &= ~MEM_F_BRUTEORF;
+	}
 
 	// Prepare file handles
 	inputSeqPtr = xzopen(passPrefix, "r");
@@ -462,15 +685,18 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 
 	while(kseq_read(seq) >= 0) {
 		// Search for ORFs
-		getSequenceORF(seq->seq.s, seq->seq.l, passOptions->min_orf_len, &orfList, &orfCount);
+		getSequenceORF(seq->seq.s, seq->seq.l-1, passOptions, passIndexInfo, &orfList, &orfCount);
 
 		// Write out the corresponding protein sequence for each ORF
 		for (orfIdx = 0 ; orfIdx < orfCount ; orfIdx++) {
 			convertToAA(seq->seq.s, orfList+orfIdx, &outputBuffer, &outputSize);
-			fprintf(outputPtr, ">%d:%d\n%.*s\n", seqIdx, orfIdx, outputSize, outputBuffer);
+
+			// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
+			fprintf(outputPtr, ">%lu:%lu:%hd:%s\n%.*s\n", seqIdx, orfIdx, orfList[orfIdx].relFrame, seq->name.s, outputSize, outputBuffer);
 			free(outputBuffer);
 		}
 
+		free(orfList);
 		seqIdx++;
 	}
 
