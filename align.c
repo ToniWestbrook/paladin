@@ -16,6 +16,7 @@ static void *process(void *shared, int step, void *_data) {
 	ktp_aux_t *aux = (ktp_aux_t*)shared;
 	ktp_data_t *data = (ktp_data_t*)_data;
 	int i;
+
 	if (step == 0) {
 		ktp_data_t *ret;
 		int64_t size = 0;
@@ -33,6 +34,7 @@ static void *process(void *shared, int step, void *_data) {
 		for (i = 0; i < ret->n_seqs; ++i) size += ret->seqs[i].l_seq;
 		if (bwa_verbose >= 3)
 			fprintf(stderr, "[M::%s] read %d sequences (%ld bp)...\n", __func__, ret->n_seqs, (long)size);
+
 		return ret;
 	} else if (step == 1) {
 		const mem_opt_t *opt = aux->opt;
@@ -59,6 +61,7 @@ static void *process(void *shared, int step, void *_data) {
 			free(sep[0]); free(sep[1]);
 		} else mem_process_seqs(opt, idx->bwt, idx->bns, idx->pac, aux->n_processed, data->n_seqs, data->seqs, aux->pes0);
 		aux->n_processed += data->n_seqs;
+
 		return data;
 	} else if (step == 2) {
 		for (i = 0; i < data->n_seqs; ++i) {
@@ -67,6 +70,7 @@ static void *process(void *shared, int step, void *_data) {
 			free(data->seqs[i].seq); free(data->seqs[i].qual); free(data->seqs[i].sam);
 		}
 		free(data->seqs); free(data);
+
 		return 0;
 	}
 	return 0;
@@ -106,8 +110,9 @@ int command_align(int argc, char *argv[]) {
 
 	aux.opt = opt = mem_opt_init();
 	memset(&opt0, 0, sizeof(mem_opt_t));
-	while ((c = getopt(argc, argv, "1epabFMCSPVYjk:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epabgnFMCSPVYju:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
+		else if (c == 'u') opt->outputType = atoi(optarg);
 		else if (c == 'o') opt->min_orf_len = atoi(optarg);
 		else if (c == '1') no_mt_io = 1;
 		else if (c == 'x') mode = optarg;
@@ -126,7 +131,9 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'F') opt->flag |= MEM_F_ALN_REG;
 		else if (c == 'Y') opt->flag |= MEM_F_SOFTCLIP;
 		else if (c == 'V') opt->flag |= MEM_F_REF_HDR;
-		else if (c == 'b') opt->flag |= MEM_F_BRUTEORF;
+		else if (c == 'b') opt->proteinFlag |= ALIGN_FLAG_BRUTEORF;
+		else if (c == 'g') opt->proteinFlag |= ALIGN_FLAG_GEN_NT;
+		else if (c == 'n') opt->proteinFlag |= ALIGN_FLAG_KEEP_PRO;
 		else if (c == 'c') opt->max_occ = atoi(optarg), opt0.max_occ = 1;
 		else if (c == 'd') opt->zdrop = atoi(optarg), opt0.zdrop = 1;
 		else if (c == 'v') bwa_verbose = atoi(optarg);
@@ -219,7 +226,6 @@ int command_align(int argc, char *argv[]) {
 		fprintf(stderr, "       -t INT        number of threads [%d]\n", opt->n_threads);
 		fprintf(stderr, "       -k INT        minimum seed length [%d]\n", opt->min_seed_len);
 		fprintf(stderr, "       -o INT        minimum ORF length accepted during protein detection [%d]\n", opt->min_orf_len);
-		fprintf(stderr, "       -o INT        minimum ORF length accepted during protein detection [%d]\n", opt->min_orf_len);
 		fprintf(stderr, "       -d INT        off-diagonal X-dropoff [%d]\n", opt->zdrop);
 		fprintf(stderr, "       -r FLOAT      look for internal seeds inside a seed longer than {-k} * FLOAT [%g]\n", opt->split_factor);
 		fprintf(stderr, "       -y INT        seed occurrence for the 3rd round seeding [%ld]\n", (long)opt->max_mem_intv);
@@ -245,6 +251,12 @@ int command_align(int argc, char *argv[]) {
 		fprintf(stderr, "                     intractg: -B9 -O16 -L5  (intra-species contigs to ref)\n");
 //		fprintf(stderr, "                     pbread: -k13 -W40 -c1000 -r10 -A1 -B1 -O1 -E1 -N25 -FeaD.001\n");
 		fprintf(stderr, "\nInput/output options:\n\n");
+		fprintf(stderr, "       -u INT        output a gene report instead of SAM when using a UniProt reference\n");
+		fprintf(stderr, "                        1: Simple ID summary report\n");
+		fprintf(stderr, "                        2: Detailed report, limited to top 1000 entries (Contacts uniprot.org)\n\n");
+
+		fprintf(stderr, "       -g            generate detected ORF nucleotide sequence FASTA\n");
+		fprintf(stderr, "       -n            keep protein sequence after alignment\n");
 		fprintf(stderr, "       -p            smart pairing (ignoring in2.fq)\n");
 		fprintf(stderr, "       -R STR        read group header line such as '@RG\\tID:foo\\tSM:bar' [null]\n");
 		fprintf(stderr, "       -H STR/FILE   insert STR to header if it starts with @; or insert lines in FILE [null]\n");
@@ -325,6 +337,7 @@ int command_align(int argc, char *argv[]) {
 	sprintf(indexProName, "%s.pro", argv[optind]);
 	sprintf(readsProName, "%s.pro", argv[optind + 1]);
 	indexInfo = getIndexHeader(indexProName);
+
 	writeReadsProtein(argv[optind + 1], readsProName, opt, indexInfo);
 
 	ko = kopen(readsProName, &fd);
@@ -349,10 +362,23 @@ int command_align(int argc, char *argv[]) {
 			opt->flag |= MEM_F_PE;
 		}
 	}
-	if (!(opt->flag & MEM_F_ALN_REG))
+
+	if (!(opt->flag & MEM_F_ALN_REG) && (opt->outputType == OUTPUT_TYPE_SAM))
 		bwa_print_sam_hdr(aux.idx->bns, hdr_line);
 	aux.actual_chunk_size = fixed_chunk_size > 0? fixed_chunk_size : opt->chunk_size * opt->n_threads;
 	kt_pipeline(no_mt_io? 1 : 2, process, &aux, 3);
+
+	// Generate UniProt report if requested
+	if ((opt->outputType == OUTPUT_TYPE_UNIPROT_SIMPLE) || (opt->outputType == OUTPUT_TYPE_UNIPROT_FULL)) {
+		renderUniprotReport(opt->outputType);
+	}
+
+	// Delete protein file unless requested otherwise
+	if (!(opt->proteinFlag & ALIGN_FLAG_KEEP_PRO)) {
+		remove(readsProName);
+	}
+
+	// Cleanup
 	free(indexProName);
 	free(readsProName);
 	free(hdr_line);
@@ -364,5 +390,6 @@ int command_align(int argc, char *argv[]) {
 		kseq_destroy(aux.ks2);
 		err_gzclose(fp2); kclose(ko2);
 	}
+
 	return 0;
 }
