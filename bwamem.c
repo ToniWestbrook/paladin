@@ -15,6 +15,8 @@
 #include "kvec.h"
 #include "ksort.h"
 #include "utils.h"
+#include "protein.h"
+#include "uniprot.h"
 
 #ifdef USE_MALLOC_WRAPPERS
 #  include "malloc_wrap.h"
@@ -49,7 +51,9 @@ mem_opt_t *mem_opt_init()
 {
 	mem_opt_t *o;
 	o = calloc(1, sizeof(mem_opt_t));
+	o->outputType = OUTPUT_TYPE_SAM;
 	o->flag = 0;
+	o->proteinFlag = 0;
 	o->a = 1; o->b = 4;
 	o->o_del = o->o_ins = 6;
 	o->e_del = o->e_ins = 1;
@@ -877,6 +881,7 @@ void mem_aln2sam(const mem_opt_t *opt, const bntseq_t *bns, kstring_t *str, bseq
 	p->flag |= p->is_rev? 0x10 : 0; // is on the reverse strand
 	p->flag |= m && m->is_rev? 0x20 : 0; // is mate on the reverse strand
 
+
 	// print up to CIGAR
 	l_name = strlen(s->name);
 	ks_resize(str, str->l + s->l_seq + l_name + (s->qual? s->l_seq : 0) + 20);
@@ -1027,13 +1032,15 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 	extern char **mem_gen_alt(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, mem_alnreg_v *a, int l_query, const char *query);
 	kstring_t str;
 	kvec_t(mem_aln_t) aa;
-	int k, l;
+	int k, l, parseIdx;
 	char **XA = 0;
+	char * uniprotEntry;
 
 	if (!(opt->flag & MEM_F_ALL))
 		XA = mem_gen_alt(opt, bns, pac, a, s->l_seq, s->seq);
 	kv_init(aa);
 	str.l = str.m = 0; str.s = 0;
+
 	for (k = l = 0; k < a->n; ++k) {
 		mem_alnreg_t *p = &a->a[k];
 		mem_aln_t *q;
@@ -1063,8 +1070,9 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 		t.flag |= extra_flag;
 		mem_aln2sam(opt, bns, &str, s, 1, &t, 0, m);
 	} else {
-		for (k = 0; k < aa.n; ++k)
+		for (k = 0; k < aa.n; ++k) {
 			mem_aln2sam(opt, bns, &str, s, aa.n, aa.a, k, m);
+		}
 		for (k = 0; k < aa.n; ++k) free(aa.a[k].cigar);
 		free(aa.a);
 	}
@@ -1225,7 +1233,9 @@ static void worker2(void *data, int i, int tid)
 			mem_mark_primary_se(w->opt, w->regs[i].n, w->regs[i].a, w->n_processed + i);
 			mem_reg2sam(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
 		}
-		free(w->regs[i].a);
+
+		// If not generating UniProt report, delete alignment immediately to save memory
+		if (w->opt->outputType == OUTPUT_TYPE_SAM) free(w->regs[i].a);
 	} else {
 		if (bwa_verbose >= 4) printf("=====> Finalizing read pair '%s' <=====\n", w->seqs[i<<1|0].name);
 		mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
@@ -1262,8 +1272,21 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 	// Filter competing alignments from multi-frame encoding during ORF detection process
 	filterCompetingAln(&w, n);
 
-	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n); // generate alignment
-	free(w.regs);
+	// Prepare Uniprot data if requested
+	switch (opt->outputType) {
+		case OUTPUT_TYPE_UNIPROT_SIMPLE:
+		case OUTPUT_TYPE_UNIPROT_FULL:
+			addUniprotList(&w, n);
+			break;
+
+		case OUTPUT_TYPE_SAM:
+			kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n); // generate alignment
+			break;
+	}
+
 	if (bwa_verbose >= 3)
 		fprintf(stderr, "[M::%s] Processed %d reads in %.3f CPU sec, %.3f real sec\n", __func__, n, cputime() - ctime, realtime() - rtime);
+
+	free(w.regs);
+
 }

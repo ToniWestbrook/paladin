@@ -226,7 +226,7 @@ int command_index(int argc, char *argv[]) {
 	}    
    
 	// Setup filenames
-	prefix = malloc(strlen(argv[optind]));
+	prefix = malloc(strlen(argv[optind]) + 1);
 	proName = malloc(strlen(argv[optind]) + 5);
 	pacName = malloc(strlen(argv[optind]) + 5);
 	bwtName = malloc(strlen(argv[optind]) + 5);

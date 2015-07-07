@@ -6,8 +6,17 @@
 #include "bwamem.h"
 
 #define GFF_MAX_FIELD 8192
+
 #define INDEX_FLAG_NT 0x02
 #define INDEX_FLAG_MF 0x04
+
+#define OUTPUT_TYPE_SAM            0
+#define OUTPUT_TYPE_UNIPROT_SIMPLE 1
+#define OUTPUT_TYPE_UNIPROT_FULL   2
+
+#define ALIGN_FLAG_BRUTEORF  0x0001
+#define ALIGN_FLAG_GEN_NT    0x0002
+#define ALIGN_FLAG_KEEP_PRO  0x0004
 
 extern unsigned char codon_aa_hash[64];
 
@@ -20,9 +29,11 @@ struct CDS {
 	char description[5000];
 };
 
-// Encoding
+// IO
 void writeIndexHeader(FILE * passFilePtr, int passProtein, int passMulti);
 char getIndexHeader(char * passFile);
+
+// Encoding
 unsigned char encodeCodon(unsigned char * passSequence, int passStrand);
 int convertToAA(char * passSequence, struct CDS * passCDS, char ** retSequence, unsigned long * retSize);
 

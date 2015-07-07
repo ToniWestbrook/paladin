@@ -21,7 +21,6 @@ typedef struct __smem_i smem_i;
 #define MEM_F_REF_HDR	0x100
 #define MEM_F_SOFTCLIP  0x200
 #define MEM_F_SMARTPE   0x400
-#define MEM_F_BRUTEORF  0x800
 
 typedef struct {
 	int a, b;               // match score and mismatch penalty
@@ -34,8 +33,10 @@ typedef struct {
 
 	uint64_t max_mem_intv;
 
+	int outputType;			// output type
 	int T;                  // output score threshold; only affecting output
 	int flag;               // see MEM_F_* macros
+	int proteinFlag;		// see ALIGN_FLAG_* protein-related defines
 	int min_orf_len;		// minimum ORF length accepted during protein detection
 	int min_seed_len;       // minimum seed length
 	int min_chain_weight;
