@@ -14,6 +14,17 @@ Protein ALignment And Detection INterface
  PALADIN currently only supports single-end reads, and BWA-MEM based alignment.  It makes 
  use of many BWA parameters and is therefore compatible with many of its command line arguments.
 
+
+**INSTALLATION**
+
+```
+git clone https://github.com/twestbrookunh/paladin.git
+cd paladin/
+make
+PATH=$PATH:$(pwd)
+
+```
+
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
 
 [![Join the chat at https://gitter.im/twestbrookunh/paladin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/twestbrookunh/paladin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
