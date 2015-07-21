@@ -95,8 +95,7 @@ void bseq_classify(int n, bseq1_t *seqs, int m[2], bseq1_t *sep[2])
 /*****************
  * CIGAR related *
  *****************/
-
-void bwa_fill_scmat(int a, int b, int8_t mat[25])
+/*void bwa_fill_scmat(int a, int b, int8_t mat[25])
 {
 	int i, j, k;
 	for (i = k = 0; i < 4; ++i) {
@@ -106,9 +105,20 @@ void bwa_fill_scmat(int a, int b, int8_t mat[25])
 	}
 	for (j = 0; j < 5; ++j) mat[k++] = -1;
 }
+*/
+void bwa_fill_scmat(int a, int b, int8_t mat[VALUE_SCORING])
+{
+	int i, j, k;
+	for (i = k = 0; i < VALUE_DEFINED - 1; ++i) {
+		for (j = 0; j < VALUE_DEFINED - 1; ++j)
+			mat[k++] = i == j? a : -b;
+		mat[k++] = -1; // ambiguous base
+	}
+	for (j = 0; j < VALUE_DEFINED ; ++j) mat[k++] = -1;
+}
 
 // Generate CIGAR when the alignment end points are known
-uint32_t *bwa_gen_cigar2(const int8_t mat[25], int o_del, int e_del, int o_ins, int e_ins, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM)
+uint32_t *bwa_gen_cigar2(const int8_t mat[VALUE_SCORING], int o_del, int e_del, int o_ins, int e_ins, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM)
 {
 	uint32_t *cigar = 0;
 	uint8_t tmp, *rseq;
@@ -196,7 +206,7 @@ ret_gen_cigar:
 	return cigar;
 }
 
-uint32_t *bwa_gen_cigar(const int8_t mat[25], int q, int r, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM)
+uint32_t *bwa_gen_cigar(const int8_t mat[VALUE_SCORING], int q, int r, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM)
 {
 	return bwa_gen_cigar2(mat, q, r, q, r, w_, l_pac, pac, l_query, query, rb, re, score, n_cigar, NM);
 }

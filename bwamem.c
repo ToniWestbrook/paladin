@@ -928,7 +928,7 @@ void mem_aln2sam(const mem_opt_t *opt, const bntseq_t *bns, kstring_t *str, bseq
 		}
 		ks_resize(str, str->l + (qe - qb) + 1);
 		//OLD for (i = qb; i < qe; ++i) str->s[str->l++] = "ACGTN"[(int)s->seq[i]];
-		for (i = qb; i < qe; ++i) str->s[str->l++] = aa_ascii_hash[s->seq[i]];
+		for (i = qb; i < qe; ++i) str->s[(int)(str->l++)] = aa_ascii_hash[(int)(s->seq[i])];
 		kputc('\t', str);
 		if (s->qual) { // printf qual
 			ks_resize(str, str->l + (qe - qb) + 1);
@@ -943,7 +943,7 @@ void mem_aln2sam(const mem_opt_t *opt, const bntseq_t *bns, kstring_t *str, bseq
 		}
 		ks_resize(str, str->l + (qe - qb) + 1);
 		//OLD for (i = qe-1; i >= qb; --i) str->s[str->l++] = "TGCAN"[(int)s->seq[i]];
-		for (i = qe-1; i >= qb; --i) str->s[str->l++] = aa_ascii_hash[s->seq[i]];
+		for (i = qe-1; i >= qb; --i) str->s[(int)(str->l++)] = aa_ascii_hash[(int)(s->seq[i])];
 		kputc('\t', str);
 		if (s->qual) { // printf qual
 			ks_resize(str, str->l + (qe - qb) + 1);
@@ -1032,9 +1032,8 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 	extern char **mem_gen_alt(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, mem_alnreg_v *a, int l_query, const char *query);
 	kstring_t str;
 	kvec_t(mem_aln_t) aa;
-	int k, l, parseIdx;
+	int k, l;
 	char **XA = 0;
-	char * uniprotEntry;
 
 	if (!(opt->flag & MEM_F_ALL))
 		XA = mem_gen_alt(opt, bns, pac, a, s->l_seq, s->seq);
@@ -1068,10 +1067,14 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 		mem_aln_t t;
 		t = mem_reg2aln(opt, bns, pac, s->l_seq, s->seq, 0);
 		t.flag |= extra_flag;
-		mem_aln2sam(opt, bns, &str, s, 1, &t, 0, m);
+		if (opt->outputType == OUTPUT_TYPE_SAM) {
+			mem_aln2sam(opt, bns, &str, s, 1, &t, 0, m);
+		}
 	} else {
-		for (k = 0; k < aa.n; ++k) {
-			mem_aln2sam(opt, bns, &str, s, aa.n, aa.a, k, m);
+		if (opt->outputType == OUTPUT_TYPE_SAM) {
+			for (k = 0; k < aa.n; ++k) {
+				mem_aln2sam(opt, bns, &str, s, aa.n, aa.a, k, m);
+			}
 		}
 		for (k = 0; k < aa.n; ++k) free(aa.a[k].cigar);
 		free(aa.a);
@@ -1234,8 +1237,7 @@ static void worker2(void *data, int i, int tid)
 			mem_reg2sam(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
 		}
 
-		// If not generating UniProt report, delete alignment immediately to save memory
-		if (w->opt->outputType == OUTPUT_TYPE_SAM) free(w->regs[i].a);
+		free(w->regs[i].a);
 	} else {
 		if (bwa_verbose >= 4) printf("=====> Finalizing read pair '%s' <=====\n", w->seqs[i<<1|0].name);
 		mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
@@ -1278,11 +1280,9 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 		case OUTPUT_TYPE_UNIPROT_FULL:
 			addUniprotList(&w, n);
 			break;
-
-		case OUTPUT_TYPE_SAM:
-			kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n); // generate alignment
-			break;
 	}
+
+	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n);
 
 	if (bwa_verbose >= 3)
 		fprintf(stderr, "[M::%s] Processed %d reads in %.3f CPU sec, %.3f real sec\n", __func__, n, cputime() - ctime, realtime() - rtime);

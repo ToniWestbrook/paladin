@@ -37,6 +37,7 @@ typedef struct {
 	int T;                  // output score threshold; only affecting output
 	int flag;               // see MEM_F_* macros
 	int proteinFlag;		// see ALIGN_FLAG_* protein-related defines
+	int indexFlag;			// see INDEX_FLAG_* index/frame related defines
 	int min_orf_len;		// minimum ORF length accepted during protein detection
 	int min_seed_len;       // minimum seed length
 	int min_chain_weight;
@@ -56,7 +57,7 @@ typedef struct {
 	int max_ins;            // when estimating insert size distribution, skip pairs with insert longer than this value
 	int max_matesw;         // perform maximally max_matesw rounds of mate-SW for each end
 	int max_XA_hits, max_XA_hits_alt; // if there are max_hits or fewer, output them all
-	int8_t mat[25];         // scoring matrix; mat[0] == 0 if unset
+	int8_t mat[VALUE_SCORING];         // scoring matrix; mat[0] == 0 if unset
 } mem_opt_t;
 
 typedef struct {
@@ -128,7 +129,7 @@ extern "C" {
 	const bwtintv_v *smem_next(smem_i *itr);
 
 	mem_opt_t *mem_opt_init(void);
-	void mem_fill_scmat(int a, int b, int8_t mat[25]);
+	void mem_fill_scmat(int a, int b, int8_t mat[VALUE_SCORING]);
 
 	/**
 	 * Align a batch of sequences and generate the alignments in the SAM format

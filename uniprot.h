@@ -3,35 +3,61 @@
 
 #include "bwamem.h"
 
-#define MAX_SUBMIT 300
+#define UNIPROT_MAX_SUBMIT 10000
+#define UNIPROT_MAX_ERROR 5
+#define UNIPROT_BUFFER_GROW 50000000
 
 #define UNIPROT_LIST_FULL 0
-#define UNIPROT_LIST_ORGANISM 1
-#define UNIPROT_LIST_GENES 2
+#define UNIPROT_LIST_GENES 1
+#define UNIPROT_LIST_ORGANISM 2
 
 typedef struct {
-	char * * entries;
+	char * id;
+	char * gene;
+	char * organism;
+	int numOccurrence;
+} UniprotEntry;
+
+typedef struct {
+	UniprotEntry * entries;
 	int count;
 } UniprotList;
 
-static UniprotList * uniprotEntryLists = 0;
-static int uniprotListCount = 0;
+typedef struct {
+	char * buffer;
+	int size;
+	int capacity;
+} CURLBuffer;
+
+// Each pipeline run maintains its own list
+extern UniprotList * uniprotEntryLists;
+extern int uniprotListCount;
 
 // Rendering
 void renderUniprotReport(int passType);
-void renderUniprotEntries(char * * passList, int * passCount, int passSize);
+void renderUniprotEntries(UniprotList * passList, int passType);
 
 // Population
 int addUniprotList(worker_t * passWorker, int passSize);
-void cleanUniprotLists();
+void cleanUniprotLists(UniprotList * passLists);
 
 // Support
-void prepareUniprotLists(char * * retLists[], int * retCounts[], int retSize[]);
-int uniqueUniprotEntry(char * passValue, char * * passList, int * passCount, int passSize);
-void sortUniprotEntries(char * * passList, int * passCount, int passSize);
-void retrieveUniprotOnline(char * * passList, int * passCount, int passSize, char * * retOutput);
-size_t receiveUniprotEntries(void * passString, size_t passSize, size_t passNum, void * retStream);
-void joinOnlineLists();
+void prepareUniprotLists(UniprotList * retLists);
+void aggregateUniprotList(UniprotList * retList, int passListType);
+void joinOnlineLists(UniprotList * retList, char * passUniprotOutput);
+
+// QSort Functions
+int uniprotEntryCompareID (const void * passEntry1, const void * passEntry2);
+int uniprotEntryCompareGene (const void * passEntry1, const void * passEntry2);
+int uniprotEntryCompareOrganism (const void * passEntry1, const void * passEntry2);
+int uniprotEntryCompareOnline (const void * passEntry1, const void * passEntry2);
+
+// UniProt Interoperability
+void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer);
+size_t receiveUniprotOutput(void * passString, size_t passSize, size_t passNum, void * retStream);
+void initCURLBuffer(CURLBuffer * passBuffer, int passCapacity);
+void resetCURLBuffer(CURLBuffer * passBuffer);
+void freeCURLBuffer(CURLBuffer * passBuffer);
 
 
 #endif /* UNIPROT_H_ */

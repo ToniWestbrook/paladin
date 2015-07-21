@@ -9,6 +9,8 @@
 // Number of unique values in input domain (cardinality of set) - Nucleotides (4) or Amino Acids (20) plus wildcards
 #define VALUE_DOMAIN 32
 #define VALUE_DEFINED 22
+#define VALUE_SCORING 484
+//#define VALUE_SCORING 25
 
 // Requirement: (OCC_INTERVAL%16 == 0); please DO NOT change this line because some part of the code assume OCC_INTERVAL=0x80
 #define OCC_INTV_SHIFT 7
@@ -24,7 +26,7 @@ typedef uint64_t bwtint_t;
 
 typedef struct {
 	bwtint_t primary; // S^{-1}(0), or the primary index of BWT
-	bwtint_t L2[VALUE_DOMAIN + 1]; // C(), cumulative count (THIS WAS PREVIOUSLY 5)
+	bwtint_t L2[VALUE_DOMAIN + 1]; // C(), cumulative count
 	bwtint_t seq_len; // sequence length
 	bwtint_t bwt_size; // size of BWT (in 32-bit integers)
 	uint32_t *bwt; // BWT
@@ -63,9 +65,9 @@ typedef struct { size_t n, m; bwtintv_t *a; } bwtintv_v;
 extern "C" {
 #endif
 
-	uint32_t * getOccInterval(bwt_t * passBWT, bwtint_t passIndex);
-	ubyte_t unpackBWTValue(bwt_t * passBWT, int passSeqIdx);
-	void getOccPerWord(uint32_t passWord, bwtint_t retOcc[VALUE_DOMAIN], int passCount);
+	uint32_t * getOccInterval(const bwt_t * passBWT, int64_t passSeqIdx);
+	ubyte_t unpackBWTValue(const bwt_t * passBWT, int64_t passSeqIdx);
+	void getOccPerWord(uint32_t passWord, bwtint_t retOcc[VALUE_DOMAIN], int64_t passCount);
 
 	void bwt_dump_bwt(const char *fn, const bwt_t *bwt);
 	void bwt_dump_sa(const char *fn, const bwt_t *bwt);
@@ -82,13 +84,13 @@ extern "C" {
 	void bwt_bwtupdate_core(bwt_t *bwt);
 
 	bwtint_t bwt_occ(const bwt_t *bwt, bwtint_t k, ubyte_t c);
-	void bwt_occ4(const bwt_t *bwt, bwtint_t k, bwtint_t cnt[4]);
+	void bwt_occ4(const bwt_t *bwt, bwtint_t k, bwtint_t cnt[VALUE_DOMAIN]);
 	bwtint_t bwt_sa(const bwt_t *bwt, bwtint_t k);
 
 	// more efficient version of bwt_occ/bwt_occ4 for retrieving two close Occ values
 	//void bwt_gen_cnt_table(bwt_t *bwt);
 	void bwt_2occ(const bwt_t *bwt, bwtint_t k, bwtint_t l, ubyte_t c, bwtint_t *ok, bwtint_t *ol);
-	void bwt_2occ4(const bwt_t *bwt, bwtint_t k, bwtint_t l, bwtint_t cntk[4], bwtint_t cntl[4]);
+	void bwt_2occ4(const bwt_t *bwt, bwtint_t k, bwtint_t l, bwtint_t cntk[VALUE_DOMAIN], bwtint_t cntl[VALUE_DOMAIN]);
 
 	int bwt_match_exact(const bwt_t *bwt, int len, const ubyte_t *str, bwtint_t *sa_begin, bwtint_t *sa_end);
 	int bwt_match_exact_alt(const bwt_t *bwt, int len, const ubyte_t *str, bwtint_t *k0, bwtint_t *l0);
@@ -96,7 +98,7 @@ extern "C" {
 	/**
 	 * Extend bi-SA-interval _ik_
 	 */
-	void bwt_extend(const bwt_t *bwt, const bwtintv_t *ik, bwtintv_t ok[4], int is_back);
+	void bwt_extend(const bwt_t *bwt, const bwtintv_t *ik, bwtintv_t ok[VALUE_DOMAIN], int is_back);
 
 	/**
 	 * Given a query _q_, collect potential SMEMs covering position _x_ and store them in _mem_.
