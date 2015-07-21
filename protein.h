@@ -34,21 +34,21 @@ void writeIndexHeader(FILE * passFilePtr, int passProtein, int passMulti);
 char getIndexHeader(char * passFile);
 
 // Encoding
-unsigned char encodeCodon(unsigned char * passSequence, int passStrand);
+unsigned char encodeCodon(char * passSequence, int passStrand);
 int convertToAA(char * passSequence, struct CDS * passCDS, char ** retSequence, unsigned long * retSize);
 
 // ORF Detection
 long getLastORFPos(long passLength, int passFrame);
 void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned long passIdx);
 void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct CDS * * retCDS, unsigned long * retCount);
-int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, char passIndexInfo, struct CDS * * retCDS, unsigned long * retCount);
+int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, struct CDS * * retCDS, unsigned long * retCount);
 
 // Protein Creation
 int getNextCDS(FILE * passFile, struct CDS * retCDS, unsigned long * retLine);
-int writeIndexProtein(const char * passPrefix, const char * passProName, const char * passAnnName);
-int writeIndexMultiProtein(const char * passPrefix, const char * passProName, const char * passAnnName);
-int writeIndexMultiCodingProtein(const char * passPrefix, const char * passProName);
+int writeIndexProtein(const char * passPrefix, const char * passProName, const char * passAnnName, int passMulti);
+int writeIndexCodingProtein(const char * passPrefix, const char * passProName, int passMulti);
 int writeIndexDirectProtein(const char * passPrefix, const char * passProName);
-int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt_t * passOptions, char passIndexInfo);
+int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt_t * passOptions);
+int writeIndexTestProtein(const char * passPrefix, const char * proName);
 
 #endif /* PROTEIN_H_ */

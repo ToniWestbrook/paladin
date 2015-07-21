@@ -7,10 +7,10 @@
 int command_index(int argc, char *argv[]);
 
 // Pack the given byte value into the BWT (pre-interleaved) at the specified index (4 per 32-bit word)
-void packValue(bwt_t * passBWT, int passSeqIdx, bwtint_t passValue);
+void packValue(bwt_t * passBWT, int64_t passSeqIdx, bwtint_t passValue);
 
 // Unpack byte from from the BWT (pre-interleaved) at the specified index
-ubyte_t unpackValue(bwt_t * passBWT, int passSeqIdx);
+ubyte_t unpackValue(bwt_t * passBWT, int64_t passSeqIdx);
 
 // Obtain sequence length from the packed file
 int64_t bwa_seq_len(const char *fn_pac);
@@ -34,6 +34,6 @@ int command_bwt2sa(int argc, char *argv[]);
 int command_index(int argc, char *argv[]);
 
 // CLEAN
-int is_bwt(ubyte_t *T, int n);
+int is_bwt(ubyte_t *T, int64_t n);
 
 #endif /* BWTINDEX_H_ */

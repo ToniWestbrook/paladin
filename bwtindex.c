@@ -195,15 +195,17 @@ int command_index(int argc, char *argv[]) {
 	char * prefix, * proName, * pacName, * bwtName, * saName;
 	gzFile fp;
 	char c;
-	int indexType, valid;
+	int indexType, multiFrame, valid;
 	clock_t t;
 
 	// Parse arguments
 	valid = 0;
 	indexType = -1;
+	multiFrame = 0;
 
-	while ((c = getopt(argc, argv, "t:")) >= 0) {
-		if (c == 't') indexType = atoi(optarg);
+	while ((c = getopt(argc, argv, "fr:")) >= 0) {
+		if (c == 'f') multiFrame = 1;
+		if (c == 'r') indexType = atoi(optarg);
 	}
 
 	// Check for valid combinations
@@ -216,11 +218,12 @@ int command_index(int argc, char *argv[]) {
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Usage: paladin index [options] <reference.fasta> [annotation.gff]\n\n");
 		fprintf(stderr, "Algorithm options:\n\n");
-		fprintf(stderr, "       -t<#>    Reference type:\n");
+		fprintf(stderr, "       -f       Enable indexing all frames in nucleotide references\n");
+		fprintf(stderr, "       -r<#>    Reference type:\n");
 		fprintf(stderr, "                   0: Reference contains nucleotide sequences (requires annotation)\n");
 		fprintf(stderr, "                   1: Reference contains nucleotide sequences (coding only)\n");
 		fprintf(stderr, "                   2: Reference contains protein sequences\n");
-		fprintf(stderr, "                   3: Test Reference\n");
+		fprintf(stderr, "                   3: Development tests\n");
 		fprintf(stderr, "\n");
 		return 1;
 	}    
@@ -245,10 +248,10 @@ int command_index(int argc, char *argv[]) {
 	switch (indexType) {
 		case 0:
 			// Nucleotide sequence and annotation
-			writeIndexMultiProtein(prefix, proName, argv[optind+1]); break;
+			writeIndexProtein(prefix, proName, argv[optind+1], multiFrame); break;
 		case 1:
 			// Nucleotide sequence, coding only
-			writeIndexMultiCodingProtein(prefix, proName); break;
+			writeIndexCodingProtein(prefix, proName, multiFrame); break;
 		case 2:
 			// Protein sequence
 			writeIndexDirectProtein(prefix, proName);

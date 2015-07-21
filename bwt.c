@@ -15,18 +15,18 @@
 #endif
 
 // Obtain the starting address of the interval in the BWT (post-interleave) for the specified index
-uint32_t * getOccInterval(bwt_t * passBWT, bwtint_t passIndex) {
-	int numIntervals;
+uint32_t * getOccInterval(const bwt_t * passBWT, int64_t passSeqIdx) {
+	int64_t numIntervals;
 
-	numIntervals = passIndex / 128;
+	numIntervals = passSeqIdx / 128;
 
 	// Each interval stores 64-bit occurrences for each of the values + 128 packed values between
 	return passBWT->bwt + (numIntervals * 2 * VALUE_DOMAIN) + (numIntervals * (128 / 4));
 }
 
 // Obtain unpacked byte value from the BWT (post-interleave) at the specified index
-ubyte_t unpackBWTValue(bwt_t * passBWT, int passSeqIdx) {
-	int packShift;
+ubyte_t unpackBWTValue(const bwt_t * passBWT, int64_t passSeqIdx) {
+	int64_t packShift;
 	uint32_t * bwtValueStart;
 
 	packShift = (8 * (sizeof(uint32_t) - 1)) - (8 * (passSeqIdx % sizeof(uint32_t)));
@@ -38,9 +38,9 @@ ubyte_t unpackBWTValue(bwt_t * passBWT, int passSeqIdx) {
 }
 
 // Add to an occurrence array given a number of interleaved BWT occurrence byte values
-void getOccPerWord(uint32_t passWord, bwtint_t retOcc[VALUE_DOMAIN], int passCount) {
+void getOccPerWord(uint32_t passWord, bwtint_t retOcc[VALUE_DOMAIN], int64_t passCount) {
 	ubyte_t * bytePtr;
-	int byteIdx;
+	int64_t byteIdx;
 
 	bytePtr = (ubyte_t *) & passWord;
 
@@ -100,9 +100,9 @@ bwtint_t bwt_sa(const bwt_t *bwt, bwtint_t k)
 	return sa + bwt->sa[k/bwt->sa_intv];
 }
 
-static inline int __occ_aux(uint64_t y, int c) {
+static inline int64_t __occ_aux(uint64_t y, int c) {
 	unsigned char * bytePtr;
-	int count, byteIdx;
+	int64_t count, byteIdx;
 
 	bytePtr = (unsigned char *) &y;
 	count = 0;
@@ -180,8 +180,7 @@ void bwt_2occ(const bwt_t *bwt, bwtint_t k, bwtint_t l, ubyte_t c, bwtint_t *ok,
 
 void bwt_occ4(const bwt_t *bwt, bwtint_t k, bwtint_t cnt[VALUE_DOMAIN])
 {
-	bwtint_t x;
-	uint32_t *p, tmp, *end;
+	uint32_t *p, *end;
 
 	// If K is set to max, set counts to 0
 	if (k == (bwtint_t)(-1)) {
@@ -200,7 +199,7 @@ void bwt_occ4(const bwt_t *bwt, bwtint_t k, bwtint_t cnt[VALUE_DOMAIN])
 	end = p + (((k / 16) - ((k&~OCC_INTV_MASK) / 16)) * 4) + ((k % 16) - (k % 4))/4;
 	int supercount = 0;
 
-	for (x = 0; p < end; ++p) {
+	for (; p < end; ++p) {
 		cnt[unpackBWTValue(bwt, k/128*128 + supercount)]++;
 		cnt[unpackBWTValue(bwt, k/128*128 + supercount+1)]++;
 		cnt[unpackBWTValue(bwt, k/128*128 + supercount+2)]++;
@@ -219,9 +218,9 @@ void bwt_occ4(const bwt_t *bwt, bwtint_t k, bwtint_t cnt[VALUE_DOMAIN])
 // an analogy to bwt_occ4() but more efficient, requiring k <= l
 void bwt_2occ4(const bwt_t *bwt, bwtint_t k, bwtint_t l, bwtint_t cntk[VALUE_DOMAIN], bwtint_t cntl[VALUE_DOMAIN])
 {
-	bwtint_t _k, _l;
-	_k = k - (k >= bwt->primary);
-	_l = l - (l >= bwt->primary);
+	//bwtint_t _k, _l;
+	//_k = k - (k >= bwt->primary);
+	//_l = l - (l >= bwt->primary);
 
 	bwt_occ4(bwt, k, cntk);
 	bwt_occ4(bwt, l, cntl);

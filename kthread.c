@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <stdio.h>
 
 /************
  * kt_for() *
@@ -127,7 +128,6 @@ void kt_pipeline(int n_threads, void *(*func)(void*, int, void*), void *shared_d
 	aux.shared = shared_data;
 	pthread_mutex_init(&aux.mutex, 0);
 	pthread_cond_init(&aux.cv, 0);
-
 	aux.workers = alloca(n_threads * sizeof(ktp_worker_t));
 	for (i = 0; i < n_threads; ++i) {
 		ktp_worker_t *w = &aux.workers[i];

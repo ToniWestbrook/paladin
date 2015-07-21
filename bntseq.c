@@ -312,7 +312,7 @@ uint8_t *add1(const kseq_t *seq, bntseq_t *bns, uint8_t *pac, int64_t *m_pac, in
 	// Iterate through each AA in the sequence
 	for (i = lasts = 0; i < seq->seq.l; ++i) {
 		// Hash encoded value
-		int c = (int) aa_encode_hash[seq->seq.s[i]];
+		int c = (int) aa_encode_hash[(int)(seq->seq.s[i])];
 
 		// Process unknowns
 		if (c >= VALUE_DEFINED) {

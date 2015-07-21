@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "bntseq.h"
 #include "protein.h"
+#include "uniprot.h"
 
 static void *process(void *shared, int step, void *_data) {
 	ktp_aux_t *aux = (ktp_aux_t*)shared;
@@ -101,7 +102,6 @@ int command_align(int argc, char *argv[]) {
 	void *ko = 0, *ko2 = 0;
 	mem_pestat_t pes[VALUE_DOMAIN];
 	ktp_aux_t aux;
-	char indexInfo;
 	char * readsProName, * indexProName;
 
 	memset(&aux, 0, sizeof(ktp_aux_t));
@@ -110,6 +110,8 @@ int command_align(int argc, char *argv[]) {
 
 	aux.opt = opt = mem_opt_init();
 	memset(&opt0, 0, sizeof(mem_opt_t));
+	opt->proteinFlag |= ALIGN_FLAG_BRUTEORF; // Temporary
+
 	while ((c = getopt(argc, argv, "1epabgnFMCSPVYju:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'u') opt->outputType = atoi(optarg);
@@ -131,7 +133,7 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'F') opt->flag |= MEM_F_ALN_REG;
 		else if (c == 'Y') opt->flag |= MEM_F_SOFTCLIP;
 		else if (c == 'V') opt->flag |= MEM_F_REF_HDR;
-		else if (c == 'b') opt->proteinFlag |= ALIGN_FLAG_BRUTEORF;
+		else if (c == 'b') opt->proteinFlag &= ~ALIGN_FLAG_BRUTEORF;
 		else if (c == 'g') opt->proteinFlag |= ALIGN_FLAG_GEN_NT;
 		else if (c == 'n') opt->proteinFlag |= ALIGN_FLAG_KEEP_PRO;
 		else if (c == 'c') opt->max_occ = atoi(optarg), opt0.max_occ = 1;
@@ -234,7 +236,7 @@ int command_align(int argc, char *argv[]) {
 		fprintf(stderr, "       -D FLOAT      drop chains shorter than FLOAT fraction of the longest overlapping chain [%.2f]\n", opt->drop_ratio);
 		fprintf(stderr, "       -W INT        discard a chain if seeded bases shorter than INT [0]\n");
 		fprintf(stderr, "       -m INT        perform at most INT rounds of mate rescues for each read [%d]\n", opt->max_matesw);
-		fprintf(stderr, "       -b            brute force ORF detection\n", opt->w);
+		fprintf(stderr, "       -b            disable brute force ORF detection\n");
 		fprintf(stderr, "       -S            skip mate rescue\n");
 		fprintf(stderr, "       -P            skip pairing; mate rescue performed unless -S also in use\n");
 		fprintf(stderr, "       -e            discard full-length exact matches\n");
@@ -336,9 +338,9 @@ int command_align(int argc, char *argv[]) {
 	readsProName = malloc(strlen(argv[optind + 1]) + 5);
 	sprintf(indexProName, "%s.pro", argv[optind]);
 	sprintf(readsProName, "%s.pro", argv[optind + 1]);
-	indexInfo = getIndexHeader(indexProName);
+	opt->indexFlag = getIndexHeader(indexProName);
 
-	writeReadsProtein(argv[optind + 1], readsProName, opt, indexInfo);
+	writeReadsProtein(argv[optind + 1], readsProName, opt);
 
 	ko = kopen(readsProName, &fd);
 	if (ko == 0) {

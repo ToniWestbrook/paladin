@@ -1,24 +1,49 @@
-/* Contact: Toni Westbrook <anthonyw@wildcats.unh.edu> 
-*
-* PALADIN (Protein Alignment and Detection Interface)
-*
-* PALADIN is a protein sequence alignment tool based on the BWA source.  Like BWA, it aligns
-* sequences via read-mapping using BWT.  PALADIN, however, offers the novel approach
-* of aligning in the protein space.  During the index phase, it processes the reference genome's
-* nucleotide sequences and GTF/GFF annotation containing CDS entries, first
-* converting these transcripts into the corresponding protein sequences, then creating the BWT
-* and suffix array from these proteins.  During the alignment phase, it attempts to find ORFs in 
-* the read sequences, then converts these to protein sequences, and aligns to the reference 
-* protein sequences. 
-*
-* PALADIN currently only supports single-end reads, and BWA-MEM based alignment.  It makes 
-* use of many BWA parameters and is therefore compatible with many of its command line arguments.
-*
-*
-* PALADIN IS CURRENTLY PRE-ALPHA AND HAS NOT BEEN FULLY TESTED.  USE AT YOUR OWN RISK.  
-* 
-*
-* For information regarding BWA, please contact its author, Heng Li <lh3@sanger.ac.uk> */ 
+/*
+   The MIT License
+
+   Copyright (c) 2011 by Attractive Chaos <attractor@live.co.uk>
+
+   Permission is hereby granted, free of charge, to any person obtaining
+   a copy of this software and associated documentation files (the
+   "Software"), to deal in the Software without restriction, including
+   without limitation the rights to use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell copies of the Software, and to
+   permit persons to whom the Software is furnished to do so, subject to
+   the following conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+   BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+   Contact: Toni Westbrook <anthonyw@wildcats.unh.edu>
+
+   PALADIN (Protein Alignment and Detection Interface)
+
+   PALADIN is a protein sequence alignment tool based on the BWA source.  Like BWA, it aligns
+   sequences via read-mapping using BWT.  PALADIN, however, offers the novel approach
+   of aligning in the protein space.  During the index phase, it processes the reference genome's
+   nucleotide sequences and GTF/GFF annotation containing CDS entries, first
+   converting these transcripts into the corresponding protein sequences, then creating the BWT
+   and suffix array from these proteins.  During the alignment phase, it attempts to find ORFs in
+   the read sequences, then converts these to protein sequences, and aligns to the reference
+   protein sequences.
+
+   PALADIN currently only supports single-end reads, and BWA-MEM based alignment.  It makes
+   use of many BWA parameters and is therefore compatible with many of its command line arguments.
+
+   PALADIN IS CURRENTLY ALPHA AND HAS NOT BEEN FULLY TESTED.  USE AT YOUR OWN RISK.
+
+   For information regarding BWA, please contact its author, Heng Li <lh3@sanger.ac.uk>
+
+*/
 
 #include <stdio.h>
 #include <string.h>
@@ -40,10 +65,10 @@ int main(int argc, char *argv[]) {
 	// Process command argument
 	for (i = 1; i < argc; ++i) ksprintf(&pg, " %s", argv[i]);
 	bwa_pg = pg.s;
+
 	if (argc < 2) return renderUsage();
 	if (strcmp(argv[1], "index") == 0) ret = command_index(argc-1, argv+1);
 	else if (strcmp(argv[1], "align") == 0) ret = command_align(argc-1, argv+1);
-	//else if (strcmp(argv[1], "pemerge") == 0) ret = main_pemerge(argc-1, argv+1);
 	else if (strcmp(argv[1], "fa2pac") == 0) ret = bwa_fa2pac(argc-1, argv+1);
 	else if (strcmp(argv[1], "pac2bwt") == 0) ret = command_pac2bwt(argc-1, argv+1);
 	else if (strcmp(argv[1], "bwtupdate") == 0) ret = command_bwtupdate(argc-1, argv+1);
@@ -54,6 +79,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;
 	}
+
 	err_fflush(stdout);
 	err_fclose(stdout);
 
@@ -65,7 +91,9 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, " %s", argv[i]);
 		fprintf(stderr, "\n[%s] Real time: %.3f sec; CPU: %.3f sec\n", __func__, realtime() - t_real, cputime());
 	}
+
 	free(bwa_pg);
+
 	return ret;
 }
 
@@ -86,6 +114,7 @@ int renderUsage() {
 	fprintf(stderr,
 "Note: To use PALADIN, first index the reference using the 'index' command.\n"
 "      Then align your reads using the 'align' command.\n\n");
+
 	return 1;
 }
 
@@ -94,7 +123,7 @@ int renderVersion() {
 	fprintf(stderr, "Program: PALADIN (Protein Alignment and Detection Interface)\n");
 
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
-	fprintf(stderr, "Contact: Toni Westbrook <anthonyw@wildcats.unh.edu>\n");
+	fprintf(stderr, "Contact: Toni Westbrook (UNH) <anthonyw@wildcats.unh.edu>\n");
 	fprintf(stderr, "Based on: BWA by Heng Li <lh3@sanger.ac.uk>\n\n");
 
 	return 1;

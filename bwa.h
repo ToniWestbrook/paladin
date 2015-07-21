@@ -37,9 +37,9 @@ extern "C" {
 	bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_);
 	void bseq_classify(int n, bseq1_t *seqs, int m[2], bseq1_t *sep[2]);
 
-	void bwa_fill_scmat(int a, int b, int8_t mat[25]);
-	uint32_t *bwa_gen_cigar(const int8_t mat[25], int q, int r, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM);
-	uint32_t *bwa_gen_cigar2(const int8_t mat[25], int o_del, int e_del, int o_ins, int e_ins, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM);
+	void bwa_fill_scmat(int a, int b, int8_t mat[VALUE_SCORING]);
+	uint32_t *bwa_gen_cigar(const int8_t mat[VALUE_SCORING], int q, int r, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM);
+	uint32_t *bwa_gen_cigar2(const int8_t mat[VALUE_SCORING], int o_del, int e_del, int o_ins, int e_ins, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM);
 
 	char *bwa_idx_infer_prefix(const char *hint);
 	bwt_t *bwa_idx_load_bwt(const char *hint);
