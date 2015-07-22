@@ -15,14 +15,24 @@ Protein ALignment And Detection INterface
  use of many BWA parameters and is therefore compatible with many of its command line arguments.
 
 
-**INSTALLATION**
+INSTALLATION
+--
+**Dependencies**
+
+- libcurl-dev. This should be available on Ubuntu using `sudo apt-get install libcurl4-openssl-dev`
+- Other things
 
 ```
 git clone https://github.com/twestbrookunh/paladin.git
 cd paladin/
 make
 PATH=$PATH:$(pwd)
+```
 
+**Sample Command**
+
+```
+paladin
 ```
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
