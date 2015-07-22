@@ -5,7 +5,7 @@ WRAP_MALLOC=-DUSE_MALLOC_WRAPPERS
 AR=			ar
 DFLAGS=		-DHAVE_PTHREAD $(WRAP_MALLOC)
 LOBJS=		utils.o kthread.o kstring.o ksw.o bwt.o bntseq.o bwa.o bwamem.o bwamem_pair.o bwamem_extra.o malloc_wrap.o
-AOBJS=		is.o bwtindex.o kopen.o pemerge.o align.o protein.o bwashm.o
+AOBJS=		is.o bwtindex.o kopen.o align.o protein.o uniprot.o bwashm.o
 PROG=		paladin
 INCLUDES=	
 LIBS=		-lm -lz -lpthread
@@ -23,7 +23,7 @@ endif
 all:$(PROG)
 
 paladin:libbwa.a $(AOBJS) main.o
-		$(CC) $(CFLAGS) $(DFLAGS) $(AOBJS) main.o -o $@ -L. -lbwa $(LIBS)
+		$(CC) $(CFLAGS) $(DFLAGS) $(AOBJS) main.o -o $@ -L. -lbwa -lcurl $(LIBS)
 
 libbwa.a:$(LOBJS)
 		$(AR) -csru $@ $(LOBJS)
@@ -53,6 +53,6 @@ kstring.o: kstring.h malloc_wrap.h
 ksw.o: ksw.h malloc_wrap.h
 main.o: kstring.h malloc_wrap.h utils.h
 malloc_wrap.o: malloc_wrap.h
-pemerge.o: ksw.h kseq.h malloc_wrap.h kstring.h bwa.h bntseq.h bwt.h utils.h
 protein.o: protein.h utils.h kseq.h malloc_wrap.h khash.h
 utils.o: utils.h ksort.h malloc_wrap.h kseq.h
+uniprot.o: uniprot.h
