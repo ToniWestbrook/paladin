@@ -215,7 +215,7 @@ uint32_t *bwa_gen_cigar(const int8_t mat[VALUE_SCORING], int q, int r, int w_, i
  * Full index reader *
  *********************/
 
-char *bwa_idx_infer_prefix(const char *hint)
+char *index_infer_prefix(const char *hint)
 {
 	char *prefix;
 	int l_hint;
@@ -241,11 +241,11 @@ char *bwa_idx_infer_prefix(const char *hint)
 	}
 }
 
-bwt_t *bwa_idx_load_bwt(const char *hint)
+bwt_t *index_load_bwt(const char *hint)
 {
 	char *tmp, *prefix;
 	bwt_t *bwt;
-	prefix = bwa_idx_infer_prefix(hint);
+	prefix = index_infer_prefix(hint);
 	if (prefix == 0) {
 		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __func__);
 		return 0;
@@ -259,12 +259,12 @@ bwt_t *bwa_idx_load_bwt(const char *hint)
 	return bwt;
 }
 
-bwaidx_t *bwa_idx_load_from_disk(const char *hint, int which)
+bwaidx_t *index_load_from_disk(const char *hint, int which)
 {
 	bwaidx_t *idx;
 	char *prefix, * proName;
 
-	prefix = bwa_idx_infer_prefix(hint);
+	prefix = index_infer_prefix(hint);
 
 	proName = malloc(strlen(prefix) + 5);
 	sprintf(proName, "%s.pro", prefix);
@@ -274,7 +274,7 @@ bwaidx_t *bwa_idx_load_from_disk(const char *hint, int which)
 		return 0;
 	}
 	idx = calloc(1, sizeof(bwaidx_t));
-	if (which & BWA_IDX_BWT) idx->bwt = bwa_idx_load_bwt(hint);
+	if (which & BWA_IDX_BWT) idx->bwt = index_load_bwt(hint);
 	if (which & BWA_IDX_BNS) {
 		int i, c;
 		idx->bns = bns_restore(hint);
@@ -294,12 +294,12 @@ bwaidx_t *bwa_idx_load_from_disk(const char *hint, int which)
 	return idx;
 }
 
-bwaidx_t *bwa_idx_load(const char *hint, int which)
+bwaidx_t *index_load(const char *hint, int which)
 {
-	return bwa_idx_load_from_disk(hint, which);
+	return index_load_from_disk(hint, which);
 }
 
-void bwa_idx_destroy(bwaidx_t *idx)
+void index_destroy(bwaidx_t *idx)
 {
 	if (idx == 0) return;
 	if (idx->mem == 0) {

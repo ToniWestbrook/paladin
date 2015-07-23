@@ -223,7 +223,7 @@ int command_align(int argc, char *argv[]) {
 	if (opt->n_threads < 1) opt->n_threads = 1;
 	if (optind + 1 >= argc || optind + 3 < argc) {
 		fprintf(stderr, "\n");
-		fprintf(stderr, "Usage: paladin mem [options] <idxbase> <in.fq>\n\n");
+		fprintf(stderr, "Usage: paladin align [options] <idxbase> <in.fq>\n\n");
 		fprintf(stderr, "Algorithm options:\n\n");
 		fprintf(stderr, "       -t INT        number of threads [%d]\n", opt->n_threads);
 		fprintf(stderr, "       -k INT        minimum seed length [%d]\n", opt->min_seed_len);
@@ -323,9 +323,9 @@ int command_align(int argc, char *argv[]) {
 
 	bwa_fill_scmat(opt->a, opt->b, opt->mat);
 
-	aux.idx = bwa_idx_load_from_shm(argv[optind]);
+	aux.idx = index_load_from_shm(argv[optind]);
 	if (aux.idx == 0) {
-		if ((aux.idx = bwa_idx_load(argv[optind], BWA_IDX_ALL)) == 0) return 1; // FIXME: memory leak
+		if ((aux.idx = index_load(argv[optind], BWA_IDX_ALL)) == 0) return 1; // FIXME: memory leak
 	} else if (bwa_verbose >= 3)
 		fprintf(stderr, "[M::%s] load the paladin index from shared memory\n", __func__);
 	if (ignore_alt)
@@ -385,7 +385,7 @@ int command_align(int argc, char *argv[]) {
 	free(readsProName);
 	free(hdr_line);
 	free(opt);
-	bwa_idx_destroy(aux.idx);
+	index_destroy(aux.idx);
 	kseq_destroy(aux.ks);
 	err_gzclose(fp); kclose(ko);
 	if (aux.ks2) {

@@ -68,6 +68,7 @@ int main(int argc, char *argv[]) {
 
 	if (argc < 2) return renderUsage();
 	if (strcmp(argv[1], "index") == 0) ret = command_index(argc-1, argv+1);
+	else if (strcmp(argv[1], "prepare") == 0) ret = command_prepare(argc-1, argv+1);
 	else if (strcmp(argv[1], "align") == 0) ret = command_align(argc-1, argv+1);
 	else if (strcmp(argv[1], "fa2pac") == 0) ret = bwa_fa2pac(argc-1, argv+1);
 	else if (strcmp(argv[1], "pac2bwt") == 0) ret = command_pac2bwt(argc-1, argv+1);
@@ -102,6 +103,7 @@ int renderUsage() {
 	fprintf(stderr, "Program: PALADIN (Protein Alignment and Detection Interface)\n\n");
 	fprintf(stderr, "Usage:   paladin <command> [options]\n\n");
 	fprintf(stderr, "Command: index         index NT or AA sequences in FASTA format\n");
+	fprintf(stderr, "         prepare       download and index protein reference\n");
 	fprintf(stderr, "         align         align single end read sequences\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "         shm           manage indices in shared memory\n");
@@ -112,7 +114,7 @@ int renderUsage() {
 	fprintf(stderr, "         version       version and contact information\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr,
-"Note: To use PALADIN, first index the reference using the 'index' command.\n"
+"Note: To use PALADIN, first index the reference using the 'index' or 'prepare' command.\n"
 "      Then align your reads using the 'align' command.\n\n");
 
 	return 1;

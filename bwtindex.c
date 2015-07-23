@@ -217,13 +217,16 @@ int command_index(int argc, char *argv[]) {
 	if (!valid) {
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Usage: paladin index [options] <reference.fasta> [annotation.gff]\n\n");
-		fprintf(stderr, "Algorithm options:\n\n");
-		fprintf(stderr, "       -f       Enable indexing all frames in nucleotide references\n");
-		fprintf(stderr, "       -r<#>    Reference type:\n");
-		fprintf(stderr, "                   0: Reference contains nucleotide sequences (requires annotation)\n");
-		fprintf(stderr, "                   1: Reference contains nucleotide sequences (coding only)\n");
-		fprintf(stderr, "                   2: Reference contains protein sequences\n");
-		fprintf(stderr, "                   3: Development tests\n");
+		fprintf(stderr, "Options:\n\n");
+		fprintf(stderr, "    -f     Enable indexing all frames in nucleotide references\n");
+		fprintf(stderr, "    -r<#>  Reference type:\n");
+		fprintf(stderr, "              0: Reference contains nucleotide sequences (requires corresponding .gff annotation)\n");
+		fprintf(stderr, "              1: Reference contains nucleotide sequences (coding only, eg curated transcriptome)\n");
+		fprintf(stderr, "              2: Reference contains protein sequences (UniProt or other source)\n");
+		fprintf(stderr, "              3: Development tests\n\n");
+		fprintf(stderr, "Examples:\n\n");
+		fprintf(stderr, "   paladin index -r0 reference.fasta reference.gff\n");
+		fprintf(stderr, "   paladin index -r2 uniprot_sprot.fasta.gz\n");
 		fprintf(stderr, "\n");
 		return 1;
 	}    
@@ -313,4 +316,44 @@ int command_index(int argc, char *argv[]) {
 	free(saName);
 
 	return 0;
+}
+
+// 'prepare' command entry point.  Download requested reference and index
+int command_prepare(int argc, char *argv[]) {
+	char c;
+	const char * refName;
+	int refType, valid;
+
+	// Fixed passthrough arguments
+	const char * passArgs[] = {"index", "-r2", ""};
+
+
+	// Parse arguments
+	valid = 0;
+	refType = -1;
+
+	while ((c = getopt(argc, argv, "r:")) >= 0) {
+		if (c == 'r') refType = atoi(optarg);
+	}
+
+	if (refType == 0) valid = 1;
+
+	if (!valid) {
+			fprintf(stderr, "\n");
+			fprintf(stderr, "Usage: paladin prepare [options]\n\n");
+			fprintf(stderr, "Options:\n\n");
+			fprintf(stderr, "    -r<#>  Reference Database:\n");
+			fprintf(stderr, "              0: UniProtKB Reviewed (Swiss-Prot)\n");
+			//fprintf(stderr, "              1: UniProtKB Unreviewed (TrEMBL)\n");
+			fprintf(stderr, "\n");
+			return 1;
+	}
+
+	if ((refName = downloadUniprotReference(refType))[0] == 0) {
+		return 1;
+	}
+
+	optind = 1;
+	passArgs[2] = refName;
+	command_index(3, (char * *) passArgs);
 }

@@ -53,6 +53,7 @@ int uniprotEntryCompareOrganism (const void * passEntry1, const void * passEntry
 int uniprotEntryCompareOnline (const void * passEntry1, const void * passEntry2);
 
 // UniProt Interoperability
+const char * downloadUniprotReference(int passReference);
 void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer);
 size_t receiveUniprotOutput(void * passString, size_t passSize, size_t passNum, void * retStream);
 void initCURLBuffer(CURLBuffer * passBuffer, int passCapacity);

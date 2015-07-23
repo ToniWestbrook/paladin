@@ -41,13 +41,13 @@ extern "C" {
 	uint32_t *bwa_gen_cigar(const int8_t mat[VALUE_SCORING], int q, int r, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM);
 	uint32_t *bwa_gen_cigar2(const int8_t mat[VALUE_SCORING], int o_del, int e_del, int o_ins, int e_ins, int w_, int64_t l_pac, const uint8_t *pac, int l_query, uint8_t *query, int64_t rb, int64_t re, int *score, int *n_cigar, int *NM);
 
-	char *bwa_idx_infer_prefix(const char *hint);
-	bwt_t *bwa_idx_load_bwt(const char *hint);
+	char *index_infer_prefix(const char *hint);
+	bwt_t *index_load_bwt(const char *hint);
 
-	bwaidx_t *bwa_idx_load_from_shm(const char *hint);
-	bwaidx_t *bwa_idx_load_from_disk(const char *hint, int which);
-	bwaidx_t *bwa_idx_load(const char *hint, int which);
-	void bwa_idx_destroy(bwaidx_t *idx);
+	bwaidx_t *index_load_from_shm(const char *hint);
+	bwaidx_t *index_load_from_disk(const char *hint, int which);
+	bwaidx_t *index_idx_load(const char *hint, int which);
+	void index_destroy(bwaidx_t *idx);
 	int bwa_idx2mem(bwaidx_t *idx);
 	int bwa_mem2idx(int64_t l_mem, uint8_t *mem, bwaidx_t *idx);
 
