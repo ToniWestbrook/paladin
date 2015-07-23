@@ -84,7 +84,7 @@ int bwa_shm_stage(bwaidx_t *idx, const char *hint, const char *_tmpfn)
 	return 0;
 }
 
-bwaidx_t *bwa_idx_load_from_shm(const char *hint)
+bwaidx_t *index_load_from_shm(const char *hint)
 {
 	const char *name;
 	uint8_t *shm, *shm_idx;
@@ -199,12 +199,12 @@ int main_shm(int argc, char *argv[])
 	if (optind < argc) {
 		if (bwa_shm_test(argv[optind]) == 0) {
 			bwaidx_t *idx;
-			idx = bwa_idx_load_from_disk(argv[optind], BWA_IDX_ALL);
+			idx = index_load_from_disk(argv[optind], BWA_IDX_ALL);
 			if (bwa_shm_stage(idx, argv[optind], tmpfn) < 0) {
 				fprintf(stderr, "[E::%s] failed to stage the index in shared memory\n", __func__);
 				ret = 1;
 			}
-			bwa_idx_destroy(idx);
+			index_destroy(idx);
 		} else fprintf(stderr, "[M::%s] index '%s' is already in shared memory\n", __func__, argv[optind]);
 	}
 	if (to_list) bwa_shm_list();

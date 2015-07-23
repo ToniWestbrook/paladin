@@ -7,6 +7,11 @@
 UniprotList * uniprotEntryLists = 0;
 int uniprotListCount = 0;
 
+const char * downloadNames[] = {"uniprot_sprot.fasta.gz", 
+			  "uniprot_trembl.fasta.gz"};
+const char * downloadURLs[] = {"ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+			 "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz"};
+
 void renderUniprotReport(int passType) {
 	UniprotList uniprotLists[3];
 	CURLBuffer tempBuffer;
@@ -51,6 +56,35 @@ void renderUniprotReport(int passType) {
 	}
 
 	cleanUniprotLists(uniprotLists);
+}
+
+const char * downloadUniprotReference(int passReference) {
+	CURL * curlHandle;
+	CURLcode curlResult;
+	FILE * fileHandle;
+	const char * retFile;
+
+	curlHandle = curl_easy_init();
+	fileHandle = fopen(downloadNames[passReference], "w");
+	retFile = downloadNames[passReference];
+
+	curl_easy_setopt(curlHandle, CURLOPT_URL, downloadURLs[passReference]);
+	curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, fileHandle) ;
+
+	fprintf(stderr, "[M::%s] Downloading %s...\n", __func__, downloadURLs[passReference]);
+
+	curlResult = curl_easy_perform(curlHandle);
+
+	if (curlResult != CURLE_OK) {
+		fprintf(stderr, "ERROR: %s\n", curl_easy_strerror(curlResult));
+		unlink(downloadNames[passReference]);
+		retFile = "";
+	}
+		
+	curl_easy_cleanup(curlHandle);
+	fclose(fileHandle);
+
+	return retFile;
 }
 
 void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
@@ -190,6 +224,19 @@ int addUniprotList(worker_t * passWorker, int passSize) {
 			if (passWorker->opt->indexFlag & INDEX_FLAG_NT)
 			for (parseIdx = 2 ; (parseIdx > 0) && (*uniprotEntry != 0) ; uniprotEntry++) {
 				if (*uniprotEntry == ':') parseIdx--;
+			}
+
+			// Strip initial IDs
+			for (parseIdx = 2 ; (parseIdx > 0) && (*uniprotEntry != 0) ; uniprotEntry++) {
+				if (*uniprotEntry == '|') parseIdx--;
+			}
+
+			// Strip description
+			for (parseIdx = 0 ; uniprotEntry[parseIdx] != 0 ; parseIdx++) {
+				if (uniprotEntry[parseIdx] == ' ') {
+					uniprotEntry[parseIdx] = 0;
+					break;
+				}
 			}
 
 			// Full ID

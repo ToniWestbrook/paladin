@@ -5,6 +5,7 @@
 #include "bwt.h"
 
 int command_index(int argc, char *argv[]);
+int command_prepare(int argc, char *argv[]);
 
 // Pack the given byte value into the BWT (pre-interleaved) at the specified index (4 per 32-bit word)
 void packValue(bwt_t * passBWT, int64_t passSeqIdx, bwtint_t passValue);
