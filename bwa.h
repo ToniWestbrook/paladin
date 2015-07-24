@@ -46,7 +46,7 @@ extern "C" {
 
 	bwaidx_t *index_load_from_shm(const char *hint);
 	bwaidx_t *index_load_from_disk(const char *hint, int which);
-	bwaidx_t *index_idx_load(const char *hint, int which);
+	bwaidx_t *index_load(const char *hint, int which);
 	void index_destroy(bwaidx_t *idx);
 	int bwa_idx2mem(bwaidx_t *idx);
 	int bwa_mem2idx(int64_t l_mem, uint8_t *mem, bwaidx_t *idx);
