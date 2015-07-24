@@ -20,7 +20,7 @@ endif
 .c.o:
 		$(CC) -c $(CFLAGS) $(DFLAGS) $(INCLUDES) $< -o $@
 
-all:$(PROG)
+all:$(PROG) check
 
 paladin:libbwa.a $(AOBJS) main.o
 		$(CC) $(CFLAGS) $(DFLAGS) $(AOBJS) main.o -o $@ -L. -lbwa -lcurl $(LIBS)
@@ -33,6 +33,10 @@ clean:
 
 depend:
 	( LC_ALL=C ; export LC_ALL; makedepend -Y -- $(CFLAGS) $(DFLAGS) -- *.c )
+
+check:
+	cd sample_data && \
+	sh ./make_test.sh
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
