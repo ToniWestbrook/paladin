@@ -6,6 +6,7 @@
 #include <zlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <errno.h>
 #include "protein.h"
 #include "bntseq.h"
 #include "utils.h"
@@ -90,6 +91,12 @@ char getIndexHeader(char * passFile) {
 	// Open file and read header information
 	filePtr = fopen(passFile, "r");
 	
+    if (filePtr == NULL) {
+    	fprintf(stderr, "[%s] fail to open file '%s' : %s\n", __func__, passFile, errno ? strerror(errno) : "Out of memory");
+    	exit(EXIT_FAILURE);
+    }
+
+
 	fscanf(filePtr, ">NT=%d:MF=%d", &readNT, &readMF);
 	fclose(filePtr);
 	
@@ -465,6 +472,11 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
         inputSeqPtr = xzopen(passPrefix, "r");
         inputAnnPtr = fopen(passAnnName, "r");
         outputPtr = fopen(passProName, "w");
+
+        if (inputAnnPtr == NULL) {
+        	fprintf(stderr, "[%s] fail to open file '%s' : %s\n", __func__, passAnnName, errno ? strerror(errno) : "Out of memory");
+        	exit(EXIT_FAILURE);
+        }
 
     	// Write index type header
     	writeIndexHeader(outputPtr, 1, passMulti);
