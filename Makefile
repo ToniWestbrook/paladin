@@ -51,7 +51,7 @@ is.o: malloc_wrap.h
 kopen.o: malloc_wrap.h
 kstring.o: kstring.h malloc_wrap.h
 ksw.o: ksw.h malloc_wrap.h
-main.o: kstring.h malloc_wrap.h utils.h
+main.o: main.h kstring.h malloc_wrap.h utils.h
 malloc_wrap.o: malloc_wrap.h
 protein.o: protein.h utils.h kseq.h malloc_wrap.h khash.h
 utils.o: utils.h ksort.h malloc_wrap.h kseq.h
