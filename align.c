@@ -255,7 +255,7 @@ int command_align(int argc, char *argv[]) {
 		fprintf(stderr, "\nInput/output options:\n\n");
 		fprintf(stderr, "       -u INT        output a gene report instead of SAM when using a UniProt reference\n");
 		fprintf(stderr, "                        1: Simple ID summary report\n");
-		fprintf(stderr, "                        2: Detailed report, limited to top 1000 entries (Contacts uniprot.org)\n\n");
+		fprintf(stderr, "                        2: Detailed report (Contacts uniprot.org)\n\n");
 
 		fprintf(stderr, "       -g            generate detected ORF nucleotide sequence FASTA\n");
 		fprintf(stderr, "       -n            keep protein sequence after alignment\n");
@@ -331,7 +331,6 @@ int command_align(int argc, char *argv[]) {
 	if (ignore_alt)
 		for (i = 0; i < aux.idx->bns->n_seqs; ++i)
 			aux.idx->bns->anns[i].is_alt = 0;
-
 
 	// Detect proteins and write to .pro file
 	indexProName = malloc(strlen(argv[optind]) + 5);
