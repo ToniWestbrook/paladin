@@ -1,8 +1,9 @@
 abstract.tex
 introduction.tex
 results.tex
-discussion.txt
+discussion.tex
 figures/figure_1/figure_1.jpg
 
+  
   
   
