@@ -10,6 +10,7 @@
 #include "kvec.h"
 #include "utils.h"
 #include "bntseq.h"
+#include "bwa.h"
 #include "protein.h"
 #include "uniprot.h"
 
