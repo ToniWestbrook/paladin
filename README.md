@@ -25,15 +25,15 @@ make
 PATH=$PATH:$(pwd)
 ```
 
-**Sample Command**
-
+SAMPLE COMMANDS
+--
 
 Download and prepare UniProt index files.
 ```
 paladin prepare -r0 
 ```
 
-Index UniProt (or another protein) fasta.
+Index UniProt (or another protein) fasta, if not using the automated `prepare` command
 ```
 paladin index -f -r2 uniprot_sprot.fasta.gz
 ```
