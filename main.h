@@ -2,7 +2,7 @@
 #define MAIN_H_
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "0.1.2"
+#define PACKAGE_VERSION "0.1.3"
 #endif
 
 // Render usage and version details

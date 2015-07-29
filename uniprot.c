@@ -202,9 +202,17 @@ int addUniprotList(worker_t * passWorker, int passSize) {
 	int refID, listSize;
 	char * uniprotEntry;
 
-	// Calculate total list size
+	// Calculate potential total list size
 	for (listSize = 0 , entryIdx = 0 ; entryIdx < passSize ; entryIdx++) {
-		listSize += passWorker->regs[entryIdx].n;
+		// Only add active sequences
+		if (!passWorker->regs[entryIdx].active) continue;
+
+		for (alnIdx = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
+			// Only add successful alignments
+			if (passWorker->regs[entryIdx].a[alnIdx].score < passWorker->opt->T) continue;
+			if (passWorker->regs[entryIdx].a[alnIdx].secondary >= 0) continue;
+			listSize++;	
+		}	
 	}
 
 	// Create list
@@ -214,7 +222,13 @@ int addUniprotList(worker_t * passWorker, int passSize) {
 
 	// Populate list
 	for (addIdx = 0, entryIdx = 0 ; entryIdx < passSize ; entryIdx++) {
+		// Only add active sequences
+		if (!passWorker->regs[entryIdx].active) continue;
+
 		for (alnIdx = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
+			// Only add successful alignments
+			if (passWorker->regs[entryIdx].a[alnIdx].score < passWorker->opt->T) continue;
+			if (passWorker->regs[entryIdx].a[alnIdx].secondary >= 0) continue;
 
 			// Extract ID and entry
 			refID = passWorker->regs[entryIdx].a[alnIdx].rid;

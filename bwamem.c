@@ -54,7 +54,7 @@ mem_opt_t *mem_opt_init()
 	o->outputType = OUTPUT_TYPE_SAM;
 	o->flag = 0;
 	o->proteinFlag = 0;
-	o->a = 1; o->b = 4;
+	o->a = 1; o->b = 1; //4;
 	o->o_del = o->o_ins = 6;
 	o->e_del = o->e_ins = 1;
 	o->w = 100;
@@ -73,7 +73,7 @@ mem_opt_t *mem_opt_init()
 	o->max_ins = 10000;
 	o->mask_level = 0.50;
 	o->drop_ratio = 0.50;
-	o->XA_drop_ratio = 0.80;
+	o->XA_drop_ratio = 0.8;
 	o->split_factor = 1.5;
 	o->chunk_size = 10000000;
 	o->n_threads = 1;
@@ -111,11 +111,12 @@ void filterCompetingAln(worker_t * passWorker, int passCount) {
 			bestIdx = seqIdx;
 		}
 
-		// Aggregate all score totals for this sequence
-		seqTotal = 0;
-		for (alnIdx = 0 ; alnIdx < passWorker->regs[seqIdx].n ; alnIdx++) {
-			seqTotal += passWorker->regs[seqIdx].a[alnIdx].truesc;
-		}
+                // Aggregate all score totals for this sequence
+                seqTotal = 0;
+                for (alnIdx = 0 ; alnIdx < passWorker->regs[seqIdx].n ; alnIdx++) {
+                        seqTotal += passWorker->regs[seqIdx].a[alnIdx].score;
+                }
+
 
 		// Check if current alignment is best so far
 		if (seqTotal > bestTotal) {
@@ -1237,7 +1238,7 @@ static void worker2(void *data, int i, int tid)
 			mem_reg2sam(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
 		}
 
-		free(w->regs[i].a);
+		//free(w->regs[i].a);
 	} else {
 		if (bwa_verbose >= 4) printf("=====> Finalizing read pair '%s' <=====\n", w->seqs[i<<1|0].name);
 		mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
@@ -1274,6 +1275,8 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 	// Filter competing alignments from multi-frame encoding during ORF detection process
 	filterCompetingAln(&w, n);
 
+	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n);
+
 	// Prepare Uniprot data if requested
 	switch (opt->outputType) {
 		case OUTPUT_TYPE_UNIPROT_SIMPLE:
@@ -1282,10 +1285,12 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 			break;
 	}
 
-	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n);
-
 	if (bwa_verbose >= 3)
 		fprintf(stderr, "[M::%s] Processed %d reads in %.3f CPU sec, %.3f real sec\n", __func__, n, cputime() - ctime, realtime() - rtime);
+
+	for (i = 0 ; i < n ; i++) {
+		free(w.regs[i].a);
+	}
 
 	free(w.regs);
 
