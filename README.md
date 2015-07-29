@@ -16,7 +16,7 @@ INSTALLATION
 **Dependencies**
 
 - From a fresh install of Ubuntu, you will need to install `build-essential libcurl4-openssl-dev git make gcc zlib1g-dev`. This should be available on Ubuntu 14.04 using `sudo apt-get install build-essential libcurl4-openssl-dev git make gcc zlib1g-dev`
-- Other things
+- PALADIN compiles by default on OSX 10.10.x
 
 ```
 git clone https://github.com/twestbrookunh/paladin.git
