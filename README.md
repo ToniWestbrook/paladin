@@ -39,7 +39,11 @@ paladin index -f -r2 uniprot_sprot.fasta.gz
 ```
 Align a set of reads using 4 theads. Send the full UniProt report to paladin_uniprot_report.txt.
 ```
-paladin align -t 4 -u 2 uniprot_sprot.fasta.gz sample_data/4520320_merged.assembled.fastq.gz > paladin_uniprot_report.txt
+paladin align -t 4 -u 2 index input.fastq.gz > paladin_uniprot_report.txt
+```
+Align a set of reads using 4 theads. Produce a bam file.
+```
+paladin align -t 4 index input.fastq.gz | samtools view -Sb - > test.bam
 ```
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
