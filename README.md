@@ -46,6 +46,31 @@ Align a set of reads using 4 theads. Produce a bam file.
 paladin align -t 4 index input.fastq.gz | samtools view -Sb - > test.bam
 ```
 
+OUTPUT
+--
+
+1. A SAM/BAM file that can be used for any downstream analyses.
+2. A tab delimited UniProt report file.
+
+```
+#FORMAT
+
+Count	UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments
+```
+
+- Count: the number of reads mapping to that UniProt entry
+- UniProtKB: The ID containing the Gene short-code and species of origin
+- ID: The Uniprot code
+- Organims: The Organims from which the Uniprot ID is derived. Note that one should use this to generate a taxonomic profile of your sample
+- Protein Names
+- Genes
+- Pathway	Features
+- Gene Ontology
+- Reviewd
+- Existence
+- Comments
+
+
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
 
 [![Join the chat at https://gitter.im/twestbrookunh/paladin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/twestbrookunh/paladin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
