@@ -58,7 +58,8 @@ OUTPUT
 Count	UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments
 ```
 
-- Count: the number of reads mapping to that UniProt entry
+- Count: The number of reads mapping to that UniProt entry
+- Count %: The percentage of reads mapping to that UniProt entry
 - UniProtKB: The ID containing the Gene short-code and species of origin
 - ID: The Uniprot code
 - Organims: The Organims from which the Uniprot ID is derived. Note that one should use this to generate a taxonomic profile of your sample
