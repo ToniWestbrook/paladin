@@ -55,7 +55,7 @@ OUTPUT
 ```
 #FORMAT
 
-Count	UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments
+Count	Count % UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments
 ```
 
 - Count: The number of reads mapping to that UniProt entry
