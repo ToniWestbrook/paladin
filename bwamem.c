@@ -51,7 +51,8 @@ mem_opt_t *mem_opt_init()
 {
 	mem_opt_t *o;
 	o = calloc(1, sizeof(mem_opt_t));
-	o->outputType = OUTPUT_TYPE_SAM;
+	o->outputStream = stdout;
+	o->outputType = OUTPUT_TYPE_UNIPROT_FULL;
 	o->flag = 0;
 	o->proteinFlag = 0;
 	o->a = 1; o->b = 1; //4;
@@ -127,6 +128,30 @@ void filterCompetingAln(worker_t * passWorker, int passCount) {
 
 	// Filter final sequence
 	passWorker->regs[bestIdx].active = 1;
+}
+
+int getAlignmentType(worker_t * passWorker, int passEntry, int passAlignment) {
+	mem_alnreg_t * currentAlignment;
+
+	currentAlignment = passWorker->regs[passEntry].a + passAlignment;
+
+	if (currentAlignment->secondary < 0) {
+		// Primary scores below threshold are not aligned
+		if (currentAlignment->score < passWorker->opt->T) return MEM_ALIGN_NONE_PRIMARY;
+
+		return MEM_ALIGN_PRIMARY;
+	}
+	else {
+		// Secondary scores below threshold are not aligned
+		if (currentAlignment->score < passWorker->opt->T) return MEM_ALIGN_NONE_SECONDARY;
+
+		// Secondary alignments must also pass score ratio requirements
+		if (currentAlignment->is_alt) return MEM_ALIGN_NONE_SECONDARY;
+		if (currentAlignment->secondary < INT_MAX &&
+			currentAlignment->score < passWorker->regs[passEntry].a[currentAlignment->secondary].score * passWorker->opt->drop_ratio) return MEM_ALIGN_NONE_SECONDARY;
+
+		return MEM_ALIGN_SECONDARY;
+	}
 }
 
 /***************************
@@ -1068,14 +1093,10 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 		mem_aln_t t;
 		t = mem_reg2aln(opt, bns, pac, s->l_seq, s->seq, 0);
 		t.flag |= extra_flag;
-		if (opt->outputType == OUTPUT_TYPE_SAM) {
-			mem_aln2sam(opt, bns, &str, s, 1, &t, 0, m);
-		}
+		mem_aln2sam(opt, bns, &str, s, 1, &t, 0, m);
 	} else {
-		if (opt->outputType == OUTPUT_TYPE_SAM) {
-			for (k = 0; k < aa.n; ++k) {
-				mem_aln2sam(opt, bns, &str, s, aa.n, aa.a, k, m);
-			}
+		for (k = 0; k < aa.n; ++k) {
+			mem_aln2sam(opt, bns, &str, s, aa.n, aa.a, k, m);
 		}
 		for (k = 0; k < aa.n; ++k) free(aa.a[k].cigar);
 		free(aa.a);
@@ -1277,13 +1298,8 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 
 	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n);
 
-	// Prepare Uniprot data if requested
-	switch (opt->outputType) {
-		case OUTPUT_TYPE_UNIPROT_SIMPLE:
-		case OUTPUT_TYPE_UNIPROT_FULL:
-			addUniprotList(&w, n);
-			break;
-	}
+	// Prepare Uniprot data (fully if requested)
+	addUniprotList(&w, n, opt->outputStream != stdout);
 
 	if (bwa_verbose >= 3)
 		fprintf(stderr, "[M::%s] Processed %d reads in %.3f CPU sec, %.3f real sec\n", __func__, n, cputime() - ctime, realtime() - rtime);

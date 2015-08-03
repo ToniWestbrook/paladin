@@ -51,7 +51,7 @@ extern "C" {
 	int bwa_idx2mem(bwaidx_t *idx);
 	int bwa_mem2idx(int64_t l_mem, uint8_t *mem, bwaidx_t *idx);
 
-	void bwa_print_sam_hdr(const bntseq_t *bns, const char *hdr_line);
+	void bwa_print_sam_hdr(const bntseq_t *bns, const char *hdr_line, FILE * passStream);
 	char *bwa_set_rg(const char *s);
 	char *bwa_insert_header(const char *s, char *hdr);
 

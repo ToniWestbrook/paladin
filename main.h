@@ -2,11 +2,11 @@
 #define MAIN_H_
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "0.1.3"
+#define PACKAGE_VERSION "0.2.0"
 #endif
 
 // Render usage and version details
-int renderUsage();
+int renderMainUsage();
 int renderVersion();
 
 // CLEAN

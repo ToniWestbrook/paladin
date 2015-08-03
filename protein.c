@@ -97,7 +97,10 @@ char getIndexHeader(char * passFile) {
     }
 
 
-	fscanf(filePtr, ">NT=%d:MF=%d", &readNT, &readMF);
+	if (fscanf(filePtr, ">NT=%d:MF=%d", &readNT, &readMF) != 2) {
+    	fprintf(stderr, "[%s] fail to parse file '%s'\n", __func__, passFile);
+    	exit(EXIT_FAILURE);
+	}
 	fclose(filePtr);
 	
 	retValue = 0;

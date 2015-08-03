@@ -4,58 +4,85 @@
 #include "uniprot.h"
 #include "protein.h"
 
-UniprotList * uniprotEntryLists = 0;
-int uniprotListCount = 0;
+UniprotList * uniprotPriEntryLists = 0;
+UniprotList * uniprotSecEntryLists = 0;
+int uniprotPriListCount = 0;
+int uniprotSecListCount = 0;
 
 const char * downloadNames[] = {"uniprot_sprot.fasta.gz", 
 			  "uniprot_trembl.fasta.gz"};
 const char * downloadURLs[] = {"ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
 			 "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz"};
 
-void renderUniprotReport(int passType) {
+UniprotList * getGlobalLists(int passPrimary) {
+	if (passPrimary) return uniprotPriEntryLists;
+	else return uniprotSecEntryLists;
+}
+
+int * getGlobalCount(int passPrimary) {
+	if (passPrimary) return &uniprotPriListCount;
+	else return &uniprotSecListCount;
+}
+
+void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists, CURLBuffer * passBuffer) {
+	UniprotList * globalLists;
+
+	// Aggregate and sort lists by value
+	prepareUniprotLists(passLists, passPrimary);
+
+	// Do not process if no results
+	globalLists = getGlobalLists(passPrimary);
+	if (globalLists[0].entryCount == 0) return;
+
+	// Report specific preparation
+	if (passType == OUTPUT_TYPE_UNIPROT_FULL) {
+		// Submit entries to UniProt and retrieve full information
+		retrieveUniprotOnline(passLists + UNIPROT_LIST_FULL, passBuffer);
+		joinOnlineLists(passLists + UNIPROT_LIST_FULL, passBuffer->buffer);
+	}
+
+	// Sort aggregated lists by count
+	qsort(passLists[UNIPROT_LIST_FULL].entries, passLists[UNIPROT_LIST_FULL].entryCount, sizeof(UniprotEntry), uniprotEntryCompareID);
+	qsort(passLists[UNIPROT_LIST_GENES].entries, passLists[UNIPROT_LIST_GENES].entryCount, sizeof(UniprotEntry), uniprotEntryCompareGene);
+	qsort(passLists[UNIPROT_LIST_ORGANISM].entries, passLists[UNIPROT_LIST_ORGANISM].entryCount, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
+}
+
+void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
+	UniprotList * globalLists;
 	UniprotList uniprotLists[3];
 	CURLBuffer tempBuffer;
 
-	// Aggregate and sort lists
-	prepareUniprotLists(uniprotLists);
+	// Prepare data
+	prepareUniprotReport(passType, passPrimary, uniprotLists, &tempBuffer);
 
-	if (uniprotLists[0].count == 0) {
-		printf("No entries to report\n");
+	// Report no data
+	globalLists = getGlobalLists(passPrimary);
+	if (globalLists[0].entryCount == 0) {
+		fprintf(passStream, "No entries to report\n");
 		return;
 	}
 
 	// Render requested report
 	switch (passType) {
 		case OUTPUT_TYPE_UNIPROT_SIMPLE:
-			// Sort all local lists
-			qsort(uniprotLists[UNIPROT_LIST_FULL].entries, uniprotLists[UNIPROT_LIST_FULL].count, sizeof(UniprotEntry), uniprotEntryCompareID);
-			qsort(uniprotLists[UNIPROT_LIST_GENES].entries, uniprotLists[UNIPROT_LIST_GENES].count, sizeof(UniprotEntry), uniprotEntryCompareGene);
-			qsort(uniprotLists[UNIPROT_LIST_ORGANISM].entries, uniprotLists[UNIPROT_LIST_ORGANISM].count, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
-
-			// Render output
-			printf("Count\tUniProtKB\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL);
-			printf("\n\nCount\tGene\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES);
-			printf("\n\nCount\tOrganism\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM);
+			fprintf(passStream, "Count\tCount %%\tUniProtKB\n");
+			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
+			fprintf(passStream, "\n\nCount\tCount %%\tGene\n");
+			renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES, passStream);
+			fprintf(passStream, "\n\nCount\tCount %%\tOrganism\n");
+			renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM, passStream);
 
 			break;
 
 		case OUTPUT_TYPE_UNIPROT_FULL:
-			// Submit entries to UniProt and retrieve full information
-			retrieveUniprotOnline(uniprotLists + UNIPROT_LIST_FULL, &tempBuffer);
-			joinOnlineLists(uniprotLists + UNIPROT_LIST_FULL, tempBuffer.buffer);
-			qsort(uniprotLists[UNIPROT_LIST_FULL].entries, uniprotLists[UNIPROT_LIST_FULL].count, sizeof(UniprotEntry), uniprotEntryCompareID);
-
-			// Render output
-			printf("Count\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewd\tExistence\tComments\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL);
+			fprintf(passStream, "Count\tCount %%\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\n");
+			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
 			freeCURLBuffer(&tempBuffer);
+
 			break;
 	}
 
-	cleanUniprotLists(uniprotLists);
+	cleanUniprotLists(uniprotLists, passPrimary);
 }
 
 const char * downloadUniprotReference(int passReference) {
@@ -99,12 +126,12 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 	curlHandle = curl_easy_init();
 	initCURLBuffer(retBuffer, UNIPROT_BUFFER_GROW);
 	initCURLBuffer(&tempBuffer, UNIPROT_BUFFER_GROW);
-	queryCount = (passList->count < UNIPROT_MAX_SUBMIT) ? passList->count : UNIPROT_MAX_SUBMIT;
+	queryCount = (passList->entryCount < UNIPROT_MAX_SUBMIT) ? passList->entryCount : UNIPROT_MAX_SUBMIT;
 
-	for (entryIdx = 0 ; entryIdx < passList->count ; ) {
+	for (entryIdx = 0 ; entryIdx < passList->entryCount ; ) {
 		// Build query string
 		queryString[0] = 0;
-		for (queryIdx = 0 ; (queryIdx < queryCount) && (entryIdx < passList->count) ; entryIdx++) {
+		for (queryIdx = 0 ; (queryIdx < queryCount) && (entryIdx < passList->entryCount) ; entryIdx++) {
 			for (parseIdx = 0 ; parseIdx < strlen(passList->entries[entryIdx].id) ; parseIdx++) {
 				if (passList->entries[entryIdx].id[parseIdx] == '_') {
 					sprintf(queryString, "%s%s ", queryString, passList->entries[entryIdx].id);
@@ -119,7 +146,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 		curl_free(httpString);
 
 		if (bwa_verbose >= 3) {
-			fprintf(stderr, "[M::%s] Submitted %d of %d entries to UniProt...\n", __func__, entryIdx, passList->count);
+			fprintf(stderr, "[M::%s] Submitted %d of %d entries to UniProt...\n", __func__, entryIdx, passList->entryCount);
 		}
 
 		// Restart a limited number of times if errors encountered
@@ -178,57 +205,105 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 	freeCURLBuffer(&tempBuffer);
 }
 
-void renderUniprotEntries(UniprotList * passList, int passType) {
-	int entryIdx;
+void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStream) {
+	int entryIdx, occurTotal;
+	float occurPercent;
 
+	// Count total occurrences for percentages
+	for (entryIdx = 0, occurTotal = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
+		occurTotal += passList->entries[entryIdx].numOccurrence;
+	}
 
-	for (entryIdx = 0 ; entryIdx < passList->count ; entryIdx++) {
+	// Render fields
+	for (entryIdx = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
+		occurPercent = (float) passList->entries[entryIdx].numOccurrence / (float ) occurTotal * 100;
 		switch(passType) {
 			case UNIPROT_LIST_FULL:
-				printf("%d\t%s\n", passList->entries[entryIdx].numOccurrence, passList->entries[entryIdx].id);
+				fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].id);
 				break;
 			case UNIPROT_LIST_GENES:
-				printf("%d\t%s\n", passList->entries[entryIdx].numOccurrence, passList->entries[entryIdx].gene);
+				fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].gene);
 				break;
 			case UNIPROT_LIST_ORGANISM:
-				printf("%d\t%s\n", passList->entries[entryIdx].numOccurrence, passList->entries[entryIdx].organism);
+				fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].organism);
 				break;
 		}
 	}
 }
 
-int addUniprotList(worker_t * passWorker, int passSize) {
-	int entryIdx, alnIdx, addIdx, parseIdx;
-	int refID, listSize;
-	char * uniprotEntry;
+void renderNumberAligned(const mem_opt_t * passOptions) {
+	int listIdx, successTotal, alignTotal;
 
-	// Calculate potential total list size
-	for (listSize = 0 , entryIdx = 0 ; entryIdx < passSize ; entryIdx++) {
-		// Only add active sequences
-		if (!passWorker->regs[entryIdx].active) continue;
-
-		for (alnIdx = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
-			// Only add successful alignments
-			if (passWorker->regs[entryIdx].a[alnIdx].score < passWorker->opt->T) continue;
-			if (passWorker->regs[entryIdx].a[alnIdx].secondary >= 0) continue;
-			listSize++;	
-		}	
+	// Primary alignments
+	for (successTotal = 0, alignTotal = 0, listIdx = 0 ; listIdx < uniprotPriListCount ; listIdx++) {
+		successTotal += uniprotPriEntryLists[listIdx].entryCount;
+		alignTotal += uniprotPriEntryLists[listIdx].entryCount + uniprotPriEntryLists[listIdx].unalignedCount;
 	}
 
-	// Create list
-	uniprotEntryLists = realloc(uniprotEntryLists, (uniprotListCount + 1) * sizeof(UniprotList));
-	uniprotEntryLists[uniprotListCount].entries = calloc(listSize, sizeof(UniprotEntry));
-	uniprotEntryLists[uniprotListCount].count = listSize;
+	// Secondary alignments (if requested)
+	if (passOptions->flag & MEM_F_ALL) {
+		for (listIdx = 0 ; listIdx < uniprotSecListCount ; listIdx++) {
+			successTotal += uniprotSecEntryLists[listIdx].entryCount;
+			alignTotal += uniprotSecEntryLists[listIdx].entryCount;
+		}
+	}
+
+	if (alignTotal == 0) {
+		fprintf(stderr, "[M::%s] No detected ORFs, no alignment performed\n", __func__);
+	}
+	else {
+		fprintf(stderr, "[M::%s] Aligned %d out of %d total detected ORFs (%.2f%%)\n", __func__, successTotal, alignTotal, (float) successTotal / (float) alignTotal * 100);
+	}
+}
+
+int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
+	int entryIdx, alnIdx, addPriIdx, addSecIdx, parseIdx;
+	int refID, alignType, totalAlign;
+	UniprotList * globalLists;
+	int * globalCount, * currentIdx;
+	char * uniprotEntry;
+
+	// Create lists
+	uniprotPriEntryLists = realloc(uniprotPriEntryLists, (uniprotPriListCount + 1) * sizeof(UniprotList));
+	memset(uniprotPriEntryLists + uniprotPriListCount, 0, sizeof(UniprotList));
+	uniprotSecEntryLists = realloc(uniprotSecEntryLists, (uniprotSecListCount + 1) * sizeof(UniprotList));
+	memset(uniprotSecEntryLists + uniprotSecListCount, 0, sizeof(UniprotList));
+
+	// Calculate potential total list size
+	for (entryIdx = 0, totalAlign = 0 ; entryIdx < passSize ; entryIdx++) {
+		// Only add active sequences
+		if (!passWorker->regs[entryIdx].active) continue;
+
+		for (alnIdx = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
+			switch (alignType = getAlignmentType(passWorker, entryIdx, alnIdx)) {
+				case MEM_ALIGN_PRIMARY:
+					uniprotPriEntryLists[uniprotPriListCount].entryCount++; break;
+				case MEM_ALIGN_SECONDARY:
+					uniprotSecEntryLists[uniprotSecListCount].entryCount++; break;
+			}
+		}	
+
+		totalAlign++;
+	}
+
+	// Set counts and allocate entries
+	uniprotPriEntryLists[uniprotPriListCount].unalignedCount = totalAlign - uniprotPriEntryLists[uniprotPriListCount].entryCount;
+	uniprotSecEntryLists[uniprotSecListCount].unalignedCount = totalAlign - uniprotSecEntryLists[uniprotSecListCount].entryCount;;
+	uniprotPriEntryLists[uniprotPriListCount].entries = calloc(uniprotPriEntryLists[uniprotPriListCount].entryCount, sizeof(UniprotEntry));
+	uniprotSecEntryLists[uniprotSecListCount].entries = calloc(uniprotSecEntryLists[uniprotSecListCount].entryCount, sizeof(UniprotEntry));
 
 	// Populate list
-	for (addIdx = 0, entryIdx = 0 ; entryIdx < passSize ; entryIdx++) {
+	for (addPriIdx = 0, addSecIdx = 0, entryIdx = 0 ; entryIdx < passSize && passFull ; entryIdx++) {
 		// Only add active sequences
 		if (!passWorker->regs[entryIdx].active) continue;
 
 		for (alnIdx = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
 			// Only add successful alignments
-			if (passWorker->regs[entryIdx].a[alnIdx].score < passWorker->opt->T) continue;
-			if (passWorker->regs[entryIdx].a[alnIdx].secondary >= 0) continue;
+			if ((alignType = getAlignmentType(passWorker, entryIdx, alnIdx)) < MEM_ALIGN_PRIMARY) continue;
+
+			globalLists = getGlobalLists(alignType == MEM_ALIGN_PRIMARY);
+			globalCount = getGlobalCount(alignType == MEM_ALIGN_PRIMARY);
+			currentIdx = (alignType == MEM_ALIGN_PRIMARY) ? &addPriIdx : &addSecIdx;
 
 			// Extract ID and entry
 			refID = passWorker->regs[entryIdx].a[alnIdx].rid;
@@ -254,40 +329,46 @@ int addUniprotList(worker_t * passWorker, int passSize) {
 			}
 
 			// Full ID
-			uniprotEntryLists[uniprotListCount].entries[addIdx].id = malloc(strlen(uniprotEntry) + 1);
-			uniprotEntryLists[uniprotListCount].entries[addIdx].numOccurrence = 1;
-			sprintf(uniprotEntryLists[uniprotListCount].entries[addIdx].id, "%s", uniprotEntry);
+			globalLists[*globalCount].entries[*currentIdx].id = malloc(strlen(uniprotEntry) + 1);
+			globalLists[*globalCount].entries[*currentIdx].numOccurrence = 1;
+			sprintf(globalLists[*globalCount].entries[*currentIdx].id, "%s", uniprotEntry);
 
 			// Gene/organism
 			for (parseIdx = 0 ; parseIdx < strlen(uniprotEntry) ; parseIdx++) {
 				if (*(uniprotEntry + parseIdx) == '_') {
-					uniprotEntryLists[uniprotListCount].entries[addIdx].gene = malloc(parseIdx + 1);
-					sprintf(uniprotEntryLists[uniprotListCount].entries[addIdx].gene, "%.*s", parseIdx, uniprotEntry);
-					uniprotEntryLists[uniprotListCount].entries[addIdx].organism = malloc(strlen(uniprotEntry + parseIdx) + 1);
-					sprintf(uniprotEntryLists[uniprotListCount].entries[addIdx].organism, "%s", uniprotEntry + parseIdx + 1);
+					globalLists[*globalCount].entries[*currentIdx].gene = malloc(parseIdx + 1);
+					sprintf(globalLists[*globalCount].entries[*currentIdx].gene, "%.*s", parseIdx, uniprotEntry);
+					globalLists[*globalCount].entries[*currentIdx].organism = malloc(strlen(uniprotEntry + parseIdx) + 1);
+					sprintf(globalLists[*globalCount].entries[*currentIdx].organism, "%s", uniprotEntry + parseIdx + 1);
 					break;
 				}
 			}
 
-			addIdx++;
+			(*currentIdx)++;
 		}
 	}
 
-	return uniprotListCount++;
+	uniprotPriListCount++;
+	uniprotSecListCount++;
+
+	return uniprotPriListCount - 1;
 }
 
-void cleanUniprotLists(UniprotList * passLists) {
+void cleanUniprotLists(UniprotList * passLists, int passPrimary) {
+	UniprotList * globalLists;
 	int listIdx, entryIdx;
 
+	globalLists = getGlobalLists(passPrimary);
+
 	// Global list 0 contains pointers to all allocated strings, so delete from there. Do not repeat with other lists
-	for (entryIdx = 0 ; entryIdx < uniprotEntryLists[0].count ; entryIdx++) {
-		free(uniprotEntryLists[0].entries[entryIdx].id);
-		free(uniprotEntryLists[0].entries[entryIdx].gene);
-		free(uniprotEntryLists[0].entries[entryIdx].organism);
+	for (entryIdx = 0 ; entryIdx < globalLists[0].entryCount ; entryIdx++) {
+		free(globalLists[0].entries[entryIdx].id);
+		free(globalLists[0].entries[entryIdx].gene);
+		free(globalLists[0].entries[entryIdx].organism);
 	}
 
-	free(uniprotEntryLists[0].entries);
-	free(uniprotEntryLists);
+	free(globalLists[0].entries);
+	free(globalLists);
 
 	// Free local lists
 	for (listIdx = 0 ; listIdx < 3 ; listIdx++) {
@@ -315,40 +396,57 @@ size_t receiveUniprotOutput(void * passString, size_t passSize, size_t passNum, 
 }
 
 
-void prepareUniprotLists(UniprotList * retLists) {
+void prepareUniprotLists(UniprotList * retLists, int passPrimary) {
+	UniprotList * globalLists;
 	int listIdx, entryIdx, localIdx;
 	int maxEntries, totalSize;
 
+	globalLists = getGlobalLists(passPrimary);
+
 	// Calculate maximum number of UniProt entries
-	for (maxEntries = 0, listIdx = 0 ; listIdx < uniprotListCount ; listIdx++) {
-		maxEntries += uniprotEntryLists[listIdx].count;
+	for (maxEntries = 0, listIdx = 0 ; listIdx < *getGlobalCount(passPrimary) ; listIdx++) {
+		maxEntries += globalLists[listIdx].entryCount;
 	}
 
 	if (bwa_verbose >= 3) {
 		fprintf(stderr, "[M::%s] Aggregating %d entries for UniProt report\n", __func__, maxEntries);
 	}
 
-	if (maxEntries == 0) return;
+	// Stop processing if no entries, but ensure a list exists for easier post-processing
+	if (maxEntries == 0) {
+		if (globalLists == NULL) {
+			if (passPrimary) uniprotPriEntryLists = malloc(sizeof(UniprotList));
+			else uniprotSecEntryLists = malloc(sizeof(UniprotList));
+
+			globalLists = getGlobalLists(passPrimary);
+			globalLists[0].entries = NULL;
+			globalLists[0].entryCount = 0;
+			globalLists[0].unalignedCount = 0;
+			*getGlobalCount(passPrimary) = 1;
+		}
+
+		return;
+	}
 
 	// Join each pipeline's individual list into one master list (at first list)
-	for (listIdx = 0, totalSize = 0 ; listIdx < uniprotListCount ; listIdx++) {
-		totalSize += uniprotEntryLists[listIdx].count;
+	for (listIdx = 0, totalSize = 0 ; listIdx < *getGlobalCount(passPrimary) ; listIdx++) {
+		totalSize += globalLists[listIdx].entryCount;
 	}
 
-	uniprotEntryLists[0].entries = realloc(uniprotEntryLists[0].entries, sizeof(UniprotEntry) * totalSize);
+	globalLists[0].entries = realloc(globalLists[0].entries, sizeof(UniprotEntry) * totalSize);
 
-	for (listIdx = 1, entryIdx = uniprotEntryLists[0].count ; listIdx < uniprotListCount ; listIdx++) {
-		memcpy(uniprotEntryLists[0].entries + entryIdx, uniprotEntryLists[listIdx].entries, sizeof(UniprotEntry) * uniprotEntryLists[listIdx].count);
-		entryIdx += uniprotEntryLists[listIdx].count;
-		free(uniprotEntryLists[listIdx].entries);
-		uniprotEntryLists[listIdx].count = 0;
+	for (listIdx = 1, entryIdx = globalLists[0].entryCount ; listIdx < *getGlobalCount(passPrimary) ; listIdx++) {
+		memcpy(globalLists[0].entries + entryIdx, globalLists[listIdx].entries, sizeof(UniprotEntry) * globalLists[listIdx].entryCount);
+		entryIdx += globalLists[listIdx].entryCount;
+		free(globalLists[listIdx].entries);
+		globalLists[listIdx].entryCount = 0;
 	}
 
-	uniprotEntryLists[0].count = totalSize;
+	globalLists[0].entryCount = totalSize;
 
 	// Aggregate each local list
 	for (localIdx = 0 ; localIdx < 3 ; localIdx++) {
-		aggregateUniprotList(retLists + localIdx, localIdx);
+		aggregateUniprotList(retLists + localIdx, localIdx, passPrimary);
 	}
 }
 
@@ -383,7 +481,7 @@ void joinOnlineLists(UniprotList * retList, char * passUniprotOutput) {
 	qsort(lineIndices, lineCount, sizeof(char *), uniprotEntryCompareOnline);
 
 	// Now cross reference/join - both are ordered, so skip in lexicographical order if match not found
-	for (entryIdx = 0, lineIdx = 1 ; (entryIdx < retList->count) && (lineIdx < lineCount)  ; ) {
+	for (entryIdx = 0, lineIdx = 1 ; (entryIdx < retList->entryCount) && (lineIdx < lineCount)  ; ) {
 		matchValue = strncmp(retList->entries[entryIdx].id, lineIndices[lineIdx], strlen(retList->entries[entryIdx].id));
 
 		if (matchValue == 0) {
@@ -397,76 +495,95 @@ void joinOnlineLists(UniprotList * retList, char * passUniprotOutput) {
 	free(lineIndices);
 }
 
-void aggregateUniprotList(UniprotList * retList, int passListType) {
+void aggregateUniprotList(UniprotList * retList, int passListType, int passPrimary) {
+	UniprotList * globalLists;
 	int entryIdx;
 	int memberOffset;
 	char * srcBase, * dstBase;
 
+	globalLists = getGlobalLists(passPrimary);
+
 	// First sort full list
 	switch (passListType) {
 		case UNIPROT_LIST_FULL:
-			qsort(uniprotEntryLists[0].entries, uniprotEntryLists[0].count, sizeof(UniprotEntry), uniprotEntryCompareID);
+			qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareID);
 			memberOffset = offsetof(UniprotEntry, id);
 			break;
 		case UNIPROT_LIST_GENES:
-			qsort(uniprotEntryLists[0].entries, uniprotEntryLists[0].count, sizeof(UniprotEntry), uniprotEntryCompareGene);
+			qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareGene);
 			memberOffset = offsetof(UniprotEntry, gene);
 			break;
 		case UNIPROT_LIST_ORGANISM:
-			qsort(uniprotEntryLists[0].entries, uniprotEntryLists[0].count, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
+			qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
 			memberOffset = offsetof(UniprotEntry, organism);
 			break;
 		default: memberOffset = 0; break;
 	}
 
 	// Count entry occurrences and aggregate into return list
-	retList->entries = calloc(uniprotEntryLists[0].count, sizeof(UniprotEntry));
-	retList->entries[0].id = uniprotEntryLists[0].entries[0].id;
-	retList->entries[0].gene = uniprotEntryLists[0].entries[0].gene;
-	retList->entries[0].organism = uniprotEntryLists[0].entries[0].organism;
-	retList->count = 0;
+	retList->entries = calloc(globalLists[0].entryCount, sizeof(UniprotEntry));
+	retList->entries[0].id = globalLists[0].entries[0].id;
+	retList->entries[0].gene = globalLists[0].entries[0].gene;
+	retList->entries[0].organism = globalLists[0].entries[0].organism;
+	retList->entryCount = 0;
 
-	for (entryIdx = 0 ; entryIdx < uniprotEntryLists[0].count ; entryIdx++) {
-		srcBase = (char *) (uniprotEntryLists[0].entries + entryIdx);
-		dstBase = (char *) (retList->entries + retList->count);
+	for (entryIdx = 0 ; entryIdx < globalLists[0].entryCount ; entryIdx++) {
+		srcBase = (char *) (globalLists[0].entries + entryIdx);
+		dstBase = (char *) (retList->entries + retList->entryCount);
 
 		// If current global entry doesn't match local entry, create new local entry and copy pointer to relevant string info
 		if (strcmp(*((char * *) (srcBase + memberOffset)), *((char * *) (dstBase + memberOffset))) != 0) {
-			dstBase = (char *) (retList->entries + ++retList->count);
+			dstBase = (char *) (retList->entries + ++retList->entryCount);
 			*((char * *) (dstBase + memberOffset)) = *((char * *) (srcBase + memberOffset));
 		}
 
-		retList->entries[retList->count].numOccurrence++;
+		retList->entries[retList->entryCount].numOccurrence++;
 	}
 
-	retList->count++;
+	retList->entryCount++;
 }
 
+
 int uniprotEntryCompareID (const void * passEntry1, const void * passEntry2) {
-	if (((UniprotEntry *)passEntry1)->numOccurrence == ((UniprotEntry *)passEntry2)->numOccurrence) {
-		return (strcmp(((UniprotEntry *)passEntry1)->id, ((UniprotEntry *)passEntry2)->id));
+	int compVal = 0;
+
+	if (((compVal = ((UniprotEntry *)passEntry2)->numOccurrence - ((UniprotEntry *)passEntry1)->numOccurrence)) != 0) {
+		return compVal;
 	}
-	else {
-		return ((UniprotEntry *)passEntry2)->numOccurrence - ((UniprotEntry *)passEntry1)->numOccurrence;
+
+	if ((compVal = strcmp(((UniprotEntry *)passEntry1)->id, ((UniprotEntry *)passEntry2)->id)) != 0) {
+		return compVal;
 	}
+
+	return compVal;
 }
 
 int uniprotEntryCompareGene (const void * passEntry1, const void * passEntry2) {
-	if (((UniprotEntry *)passEntry1)->numOccurrence == ((UniprotEntry *)passEntry2)->numOccurrence) {
-		return (strcmp(((UniprotEntry *)passEntry1)->gene, ((UniprotEntry *)passEntry2)->gene));
+	int compVal = 0;
+
+	if (((compVal = ((UniprotEntry *)passEntry2)->numOccurrence - ((UniprotEntry *)passEntry1)->numOccurrence)) != 0) {
+		return compVal;
 	}
-	else {
-		return ((UniprotEntry *)passEntry2)->numOccurrence - ((UniprotEntry *)passEntry1)->numOccurrence;
+
+	if ((compVal = strcmp(((UniprotEntry *)passEntry1)->gene, ((UniprotEntry *)passEntry2)->gene)) != 0) {
+		return compVal;
 	}
+
+	return compVal;
 }
 
 int uniprotEntryCompareOrganism (const void * passEntry1, const void * passEntry2) {
-	if (((UniprotEntry *)passEntry1)->numOccurrence == ((UniprotEntry *)passEntry2)->numOccurrence) {
-		return (strcmp(((UniprotEntry *)passEntry1)->organism, ((UniprotEntry *)passEntry2)->organism));
+	int compVal = 0;
+
+	if (((compVal = ((UniprotEntry *)passEntry2)->numOccurrence - ((UniprotEntry *)passEntry1)->numOccurrence)) != 0) {
+		return compVal;
 	}
-	else {
-		return ((UniprotEntry *)passEntry2)->numOccurrence - ((UniprotEntry *)passEntry1)->numOccurrence;
+
+	if ((compVal = strcmp(((UniprotEntry *)passEntry1)->organism, ((UniprotEntry *)passEntry2)->organism)) != 0) {
+		return compVal;
 	}
+
+	return compVal;
 }
 
 int uniprotEntryCompareOnline (const void * passEntry1, const void * passEntry2) {

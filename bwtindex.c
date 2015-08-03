@@ -10,6 +10,7 @@
 #include "protein.h"
 #include "bntseq.h"
 #include "utils.h"
+#include "uniprot.h"
 
 #ifdef _DIVBWT
     #include "divsufsort.h"
@@ -355,5 +356,5 @@ int command_prepare(int argc, char *argv[]) {
 
 	optind = 1;
 	passArgs[2] = refName;
-	command_index(3, (char * *) passArgs);
+	return command_index(3, (char * *) passArgs);
 }

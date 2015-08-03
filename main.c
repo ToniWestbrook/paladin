@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 	for (i = 1; i < argc; ++i) ksprintf(&pg, " %s", argv[i]);
 	bwa_pg = pg.s;
 
-	if (argc < 2) return renderUsage();
+	if (argc < 2) return renderMainUsage();
 	if (strcmp(argv[1], "index") == 0) ret = command_index(argc-1, argv+1);
 	else if (strcmp(argv[1], "prepare") == 0) ret = command_prepare(argc-1, argv+1);
 	else if (strcmp(argv[1], "align") == 0) ret = command_align(argc-1, argv+1);
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 	return ret;
 }
 
-int renderUsage() {
+int renderMainUsage() {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Program: PALADIN (Protein Alignment and Detection Interface)\n\n");
 	fprintf(stderr, "Usage:   paladin <command> [options]\n\n");
