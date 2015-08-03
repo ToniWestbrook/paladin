@@ -37,9 +37,9 @@ Index UniProt (or another protein) fasta, if not using the automated `prepare` c
 ```
 paladin index -f -r2 uniprot_sprot.fasta.gz
 ```
-Align a set of reads using 4 theads. Send the full UniProt report to paladin_uniprot_report.txt.
+Align a set of reads using 4 theads. Send the full UniProt report to paladin_uniprot.tsv.
 ```
-paladin align -t 4 -u 2 index input.fastq.gz > paladin_uniprot_report.txt
+paladin align -t 4 -o paladin index input.fastq.gz
 ```
 Align a set of reads using 4 theads. Produce a bam file.
 ```
