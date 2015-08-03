@@ -19,4 +19,5 @@
 
 ### Known Issues
 - Alignment stats shown at completion do not properly subtract out supplementary alignments, so total and percentages are slightly off from flagstat output
+- File output currenltly requires prefix to be given, will not autogenerate name if one isn't specified
 
