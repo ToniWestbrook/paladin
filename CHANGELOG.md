@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.2.1] - 2015-08-06
+### Fixed
+- Alignment stats shown at completion now properly account for supplementary alignments
+
 ## [0.2.0] - 2015-08-02
 ### Added
 - Changelog (history starts here)

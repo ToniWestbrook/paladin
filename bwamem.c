@@ -880,7 +880,6 @@ static inline int infer_bw(int l1, int l2, int score, int a, int q, int r)
 
 static inline int get_rlen(int n_cigar, const uint32_t *cigar)
 {
-	// TONI CHECK
 	int k, l;
 	for (k = l = 0; k < n_cigar; ++k) {
 		int op = cigar[k]&0xf;
@@ -894,8 +893,8 @@ void mem_aln2sam(const mem_opt_t *opt, const bntseq_t *bns, kstring_t *str, bseq
 {
 	int i, l_name;
 	mem_aln_t ptmp = list[which], *p = &ptmp, mtmp, *m = 0; // make a copy of the alignment to convert
-
 	if (m_) mtmp = *m_, m = &mtmp;
+
 	// set flag
 	p->flag |= m? 0x1 : 0; // is paired in sequencing
 	p->flag |= p->rid < 0? 0x4 : 0; // is mapped
@@ -1069,9 +1068,11 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 	for (k = l = 0; k < a->n; ++k) {
 		mem_alnreg_t *p = &a->a[k];
 		mem_aln_t *q;
+
 		if (p->score < opt->T) continue;
 		if (p->secondary >= 0 && (p->is_alt || !(opt->flag&MEM_F_ALL))) continue;
 		if (p->secondary >= 0 && p->secondary < INT_MAX && p->score < a->a[p->secondary].score * opt->drop_ratio) continue;
+
 		q = kv_pushp(mem_aln_t, aa);
 		*q = mem_reg2aln(opt, bns, pac, s->l_seq, s->seq, p);
 		assert(q->rid >= 0); // this should not happen with the new code

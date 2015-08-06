@@ -258,7 +258,7 @@ void renderNumberAligned(const mem_opt_t * passOptions) {
 
 int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 	int entryIdx, alnIdx, addPriIdx, addSecIdx, parseIdx;
-	int refID, alignType, totalAlign;
+	int refID, alignType, primaryCount, totalAlign;
 	UniprotList * globalLists;
 	int * globalCount, * currentIdx;
 	char * uniprotEntry;
@@ -274,10 +274,13 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 		// Only add active sequences
 		if (!passWorker->regs[entryIdx].active) continue;
 
-		for (alnIdx = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
+		for (alnIdx = 0, primaryCount = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
 			switch (alignType = getAlignmentType(passWorker, entryIdx, alnIdx)) {
 				case MEM_ALIGN_PRIMARY:
-					uniprotPriEntryLists[uniprotPriListCount].entryCount++; break;
+					uniprotPriEntryLists[uniprotPriListCount].entryCount++;
+					// Count non-linear as total alignments
+					if (primaryCount++) totalAlign++;
+					break;
 				case MEM_ALIGN_SECONDARY:
 					uniprotSecEntryLists[uniprotSecListCount].entryCount++; break;
 			}
