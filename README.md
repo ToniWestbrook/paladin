@@ -46,6 +46,19 @@ Align a set of reads using 4 theads. Produce a bam file.
 paladin align -t 4 index input.fastq.gz | samtools view -Sb - > test.bam
 ```
 
+If you're intersted in trying this out on a smallish test file, try downloading this one which is from a human lung metagenome study: http://www.ebi.ac.uk/ena/data/view/PRJNA71831
+
+
+```
+#install PALADIN as per above
+
+curl -O ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR117/002/SRR1177122/SRR1177122.fastq.gz
+paladin prepare -r0 #unless already done
+paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
+
+#look at report file, SAM, etc.
+```
+
 OUTPUT
 --
 
