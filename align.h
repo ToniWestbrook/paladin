@@ -29,6 +29,8 @@ static void update_a(mem_opt_t *opt, const mem_opt_t *opt0);
 // 'align' command entry point
 int command_align(int argc, char *argv[]);
 
+int renderAlignUsage(const mem_opt_t * passOptions);
+
 // CLEAN
 void *kopen(const char *fn, int *_fd);
 int kclose(void *a);

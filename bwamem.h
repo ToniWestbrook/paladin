@@ -22,6 +22,11 @@ typedef struct __smem_i smem_i;
 #define MEM_F_SOFTCLIP  0x200
 #define MEM_F_SMARTPE   0x400
 
+#define MEM_ALIGN_NONE_SECONDARY -2
+#define MEM_ALIGN_NONE_PRIMARY -1
+#define MEM_ALIGN_PRIMARY 0
+#define MEM_ALIGN_SECONDARY 1
+
 typedef struct {
 	int a, b;               // match score and mismatch penalty
 	int o_del, e_del;
@@ -33,6 +38,7 @@ typedef struct {
 
 	uint64_t max_mem_intv;
 
+	FILE * outputStream;	// Stream for SAM output (stdout or file)
 	int outputType;			// output type
 	int T;                  // output score threshold; only affecting output
 	int flag;               // see MEM_F_* macros
@@ -57,6 +63,7 @@ typedef struct {
 	int max_ins;            // when estimating insert size distribution, skip pairs with insert longer than this value
 	int max_matesw;         // perform maximally max_matesw rounds of mate-SW for each end
 	int max_XA_hits, max_XA_hits_alt; // if there are max_hits or fewer, output them all
+
 	int8_t mat[VALUE_SCORING];         // scoring matrix; mat[0] == 0 if unset
 } mem_opt_t;
 
@@ -121,6 +128,7 @@ extern "C" {
 #endif
 
 	void filterCompetingAln(worker_t * passWorker, int passCount);
+	int getAlignmentType(worker_t * passWorker, int passEntry, int passAlignment);
 
 	smem_i *smem_itr_init(const bwt_t *bwt);
 	void smem_itr_destroy(smem_i *itr);

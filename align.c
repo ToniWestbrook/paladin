@@ -17,6 +17,7 @@
 static void *process(void *shared, int step, void *_data) {
 	ktp_aux_t *aux = (ktp_aux_t*)shared;
 	ktp_data_t *data = (ktp_data_t*)_data;
+	const mem_opt_t *opt = aux->opt;
 	int i;
 
 	if (step == 0) {
@@ -39,7 +40,6 @@ static void *process(void *shared, int step, void *_data) {
 
 		return ret;
 	} else if (step == 1) {
-		const mem_opt_t *opt = aux->opt;
 		const bwaidx_t *idx = aux->idx;
 		if (opt->flag & MEM_F_SMARTPE) {
 			bseq1_t *sep[2];
@@ -67,7 +67,7 @@ static void *process(void *shared, int step, void *_data) {
 		return data;
 	} else if (step == 2) {
 		for (i = 0; i < data->n_seqs; ++i) {
-			if (data->seqs[i].sam) err_fputs(data->seqs[i].sam, stdout);
+			if (data->seqs[i].sam) err_fputs(data->seqs[i].sam, opt->outputStream);
 			free(data->seqs[i].name); free(data->seqs[i].comment);
 			free(data->seqs[i].seq); free(data->seqs[i].qual); free(data->seqs[i].sam);
 		}
@@ -103,7 +103,9 @@ int command_align(int argc, char *argv[]) {
 	void *ko = 0, *ko2 = 0;
 	mem_pestat_t pes[VALUE_DOMAIN];
 	ktp_aux_t aux;
-	char * readsProName, * indexProName;
+	FILE * reportPriStream = 0, * reportSecStream = 0;
+	char * readsProName = 0, * indexProName = 0, * prefixName = 0;
+	char * samName = 0, * reportPriName = 0, * reportSecName = 0;
 
 	memset(&aux, 0, sizeof(ktp_aux_t));
 	memset(pes, 0, VALUE_DOMAIN * sizeof(mem_pestat_t));
@@ -116,7 +118,8 @@ int command_align(int argc, char *argv[]) {
 	while ((c = getopt(argc, argv, "1epabgnFMCSPVYju:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'u') opt->outputType = atoi(optarg);
-		else if (c == 'o') opt->min_orf_len = atoi(optarg);
+		//else if (c == 'o') opt->min_orf_len = atoi(optarg);
+		else if (c == 'o') prefixName = optarg;
 		else if (c == '1') no_mt_io = 1;
 		else if (c == 'x') mode = optarg;
 		else if (c == 'w') opt->w = atoi(optarg), opt0.w = 1;
@@ -223,63 +226,7 @@ int command_align(int argc, char *argv[]) {
 
 	if (opt->n_threads < 1) opt->n_threads = 1;
 	if (optind + 1 >= argc || optind + 3 < argc) {
-		fprintf(stderr, "\n");
-		fprintf(stderr, "Usage: paladin align [options] <idxbase> <in.fq>\n\n");
-		fprintf(stderr, "Algorithm options:\n\n");
-		fprintf(stderr, "       -t INT        number of threads [%d]\n", opt->n_threads);
-		fprintf(stderr, "       -k INT        minimum seed length [%d]\n", opt->min_seed_len);
-		fprintf(stderr, "       -o INT        minimum ORF length accepted during protein detection [%d]\n", opt->min_orf_len);
-		fprintf(stderr, "       -d INT        off-diagonal X-dropoff [%d]\n", opt->zdrop);
-		fprintf(stderr, "       -r FLOAT      look for internal seeds inside a seed longer than {-k} * FLOAT [%g]\n", opt->split_factor);
-		fprintf(stderr, "       -y INT        seed occurrence for the 3rd round seeding [%ld]\n", (long)opt->max_mem_intv);
-//		fprintf(stderr, "       -s INT        look for internal seeds inside a seed with less than INT occ [%d]\n", opt->split_width);
-		fprintf(stderr, "       -c INT        skip seeds with more than INT occurrences [%d]\n", opt->max_occ);
-		fprintf(stderr, "       -D FLOAT      drop chains shorter than FLOAT fraction of the longest overlapping chain [%.2f]\n", opt->drop_ratio);
-		fprintf(stderr, "       -W INT        discard a chain if seeded bases shorter than INT [0]\n");
-		fprintf(stderr, "       -m INT        perform at most INT rounds of mate rescues for each read [%d]\n", opt->max_matesw);
-		fprintf(stderr, "       -b            disable brute force ORF detection\n");
-		fprintf(stderr, "       -S            skip mate rescue\n");
-		fprintf(stderr, "       -P            skip pairing; mate rescue performed unless -S also in use\n");
-		fprintf(stderr, "       -e            discard full-length exact matches\n");
-		fprintf(stderr, "\nScoring options:\n\n");
-		fprintf(stderr, "       -A INT        score for a sequence match, which scales options -TdBOELU unless overridden [%d]\n", opt->a);
-		fprintf(stderr, "       -B INT        penalty for a mismatch [%d]\n", opt->b);
-		fprintf(stderr, "       -O INT[,INT]  gap open penalties for deletions and insertions [%d,%d]\n", opt->o_del, opt->o_ins);
-		fprintf(stderr, "       -E INT[,INT]  gap extension penalty; a gap of size k cost '{-O} + {-E}*k' [%d,%d]\n", opt->e_del, opt->e_ins);
-		fprintf(stderr, "       -L INT[,INT]  penalty for 5'- and 3'-end clipping [%d,%d]\n", opt->pen_clip5, opt->pen_clip3);
-		fprintf(stderr, "       -U INT        penalty for an unpaired read pair [%d]\n\n", opt->pen_unpaired);
-		fprintf(stderr, "       -x STR        read type. Setting -x changes multiple parameters unless overriden [null]\n");
-		fprintf(stderr, "                     pacbio: -k17 -W40 -r10 -A1 -B1 -O1 -E1 -L0  (PacBio reads to ref)\n");
-		fprintf(stderr, "                     ont2d: -k14 -W20 -r10 -A1 -B1 -O1 -E1 -L0  (Oxford Nanopore 2D-reads to ref)\n");
-		fprintf(stderr, "                     intractg: -B9 -O16 -L5  (intra-species contigs to ref)\n");
-//		fprintf(stderr, "                     pbread: -k13 -W40 -c1000 -r10 -A1 -B1 -O1 -E1 -N25 -FeaD.001\n");
-		fprintf(stderr, "\nInput/output options:\n\n");
-		fprintf(stderr, "       -u INT        output a gene report instead of SAM when using a UniProt reference\n");
-		fprintf(stderr, "                        1: Simple ID summary report\n");
-		fprintf(stderr, "                        2: Detailed report (Contacts uniprot.org)\n\n");
-
-		fprintf(stderr, "       -g            generate detected ORF nucleotide sequence FASTA\n");
-		fprintf(stderr, "       -n            keep protein sequence after alignment\n");
-		fprintf(stderr, "       -p            smart pairing (ignoring in2.fq)\n");
-		fprintf(stderr, "       -R STR        read group header line such as '@RG\\tID:foo\\tSM:bar' [null]\n");
-		fprintf(stderr, "       -H STR/FILE   insert STR to header if it starts with @; or insert lines in FILE [null]\n");
-		fprintf(stderr, "       -j            treat ALT contigs as part of the primary assembly (i.e. ignore <idxbase>.alt file)\n");
-		fprintf(stderr, "\n");
-		fprintf(stderr, "       -v INT        verbose level: 1=error, 2=warning, 3=message, 4+=debugging [%d]\n", bwa_verbose);
-		fprintf(stderr, "       -T INT        minimum score to output [%d]\n", opt->T);
-		fprintf(stderr, "       -h INT[,INT]  if there are <INT hits with score >80%% of the max score, output all in XA [%d,%d]\n", opt->max_XA_hits, opt->max_XA_hits_alt);
-		fprintf(stderr, "       -a            output all alignments for SE or unpaired PE\n");
-		fprintf(stderr, "       -C            append FASTA/FASTQ comment to SAM output\n");
-		fprintf(stderr, "       -V            output the reference FASTA header in the XR tag\n");
-		fprintf(stderr, "       -Y            use soft clipping for supplementary alignments\n");
-		fprintf(stderr, "       -M            mark shorter split hits as secondary\n\n");
-		fprintf(stderr, "       -I FLOAT[,FLOAT[,INT[,INT]]]\n");
-		fprintf(stderr, "                     specify the mean, standard deviation (10%% of the mean if absent), max\n");
-		fprintf(stderr, "                     (4 sigma from the mean if absent) and min of the insert size distribution.\n");
-		fprintf(stderr, "                     FR orientation only. [inferred]\n");
-		fprintf(stderr, "\n");
-		fprintf(stderr, "Note: Please read the man page for detailed description of the command line and options.\n");
-		fprintf(stderr, "\n");
+		renderAlignUsage(opt);
 		free(opt);
 		return 1;
 	}
@@ -322,8 +269,10 @@ int command_align(int argc, char *argv[]) {
 		}
 	} else update_a(opt, &opt0);
 
+	// Create scoring weight matrix
 	bwa_fill_scmat(opt->a, opt->b, opt->mat);
 
+	// Load index
 	aux.idx = index_load_from_shm(argv[optind]);
 	if (aux.idx == 0) {
 		if ((aux.idx = index_load(argv[optind], BWA_IDX_ALL)) == 0) return 1; // FIXME: memory leak
@@ -333,6 +282,26 @@ int command_align(int argc, char *argv[]) {
 		for (i = 0; i < aux.idx->bns->n_seqs; ++i)
 			aux.idx->bns->anns[i].is_alt = 0;
 
+	// Ready output files if requested (else stdout)
+	if (prefixName != NULL) {
+		samName = malloc(strlen(prefixName) + 5);
+		reportPriName = malloc(strlen(prefixName) + 23);
+		reportSecName = malloc(strlen(prefixName) + 23);
+		sprintf(samName, "%s.sam", prefixName);
+		sprintf(reportPriName, "%s_uniprot.tsv", prefixName);
+
+		if (opt->flag & MEM_F_ALL) {
+			sprintf(reportPriName, "%s_uniprot_primary.tsv", prefixName);
+			sprintf(reportSecName, "%s_uniprot_secondary.tsv", prefixName);
+		}
+
+		// Open files
+		opt->outputStream = fopen(samName, "w");
+		reportPriStream = fopen(reportPriName, "w");
+		if (opt->flag & MEM_F_ALL) reportSecStream = fopen(reportSecName, "w");
+
+	}
+
 	// Detect proteins and write to .pro file
 	indexProName = malloc(strlen(argv[optind]) + 5);
 	readsProName = malloc(strlen(argv[optind + 1]) + 5);
@@ -340,8 +309,10 @@ int command_align(int argc, char *argv[]) {
 	sprintf(readsProName, "%s.pro", argv[optind + 1]);
 	opt->indexFlag = getIndexHeader(indexProName);
 
+	// Detect ORFs and write protein file
 	writeReadsProtein(argv[optind + 1], readsProName, opt);
 
+	// Open ORFs sequence
 	ko = kopen(readsProName, &fd);
 	if (ko == 0) {
 		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to open file `%s'.\n", __func__, argv[optind + 1]);
@@ -365,14 +336,24 @@ int command_align(int argc, char *argv[]) {
 		}
 	}
 
-	if (!(opt->flag & MEM_F_ALN_REG) && (opt->outputType == OUTPUT_TYPE_SAM))
-		bwa_print_sam_hdr(aux.idx->bns, hdr_line);
+	// Render SAM header
+	if (!(opt->flag & MEM_F_ALN_REG)) {
+		bwa_print_sam_hdr(aux.idx->bns, hdr_line, opt->outputStream);
+	}
+
+	// Align and render
 	aux.actual_chunk_size = fixed_chunk_size > 0? fixed_chunk_size : opt->chunk_size * opt->n_threads;
 	kt_pipeline(no_mt_io? 1 : 2, process, &aux, 3);
 
+	// Report number aligned
+	renderNumberAligned(opt);
+
 	// Generate UniProt report if requested
-	if ((opt->outputType == OUTPUT_TYPE_UNIPROT_SIMPLE) || (opt->outputType == OUTPUT_TYPE_UNIPROT_FULL)) {
-		renderUniprotReport(opt->outputType);
+	if (prefixName != NULL) {
+		renderUniprotReport(opt->outputType, 1, reportPriStream);
+		if (opt->flag & MEM_F_ALL) {
+			renderUniprotReport(opt->outputType, 0, reportSecStream);
+		}
 	}
 
 	// Delete protein file unless requested otherwise
@@ -381,10 +362,18 @@ int command_align(int argc, char *argv[]) {
 	}
 
 	// Cleanup
+	if (opt->outputStream != stdout) fclose (opt->outputStream);
+	if (reportPriStream) fclose(reportPriStream);
+	if (reportSecStream) fclose(reportSecStream);
+
 	free(indexProName);
 	free(readsProName);
+	free(samName);
+	free(reportPriName);
+	free(reportSecName);
 	free(hdr_line);
 	free(opt);
+
 	index_destroy(aux.idx);
 	kseq_destroy(aux.ks);
 	err_gzclose(fp); kclose(ko);
@@ -394,4 +383,74 @@ int command_align(int argc, char *argv[]) {
 	}
 
 	return 0;
+}
+
+int renderAlignUsage(const mem_opt_t * passOptions) {
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Usage: paladin align [options] <idxbase> <in.fq>\n\n");
+
+	fprintf(stderr, "Protein detection options:\n\n");
+	fprintf(stderr, "       -b            disable brute force ORF detection\n");
+	//fprintf(stderr, "       -l INT        minimum ORF length accepted during protein detection (DISABLED) [%d]\n", passOptions->min_orf_len);
+
+	fprintf(stderr, "\nAlignment options:\n\n");
+	fprintf(stderr, "       -t INT        number of threads [%d]\n", passOptions->n_threads);
+	fprintf(stderr, "       -k INT        minimum seed length [%d]\n", passOptions->min_seed_len);
+	fprintf(stderr, "       -d INT        off-diagonal X-dropoff [%d]\n", passOptions->zdrop);
+	fprintf(stderr, "       -r FLOAT      look for internal seeds inside a seed longer than {-k} * FLOAT [%g]\n", passOptions->split_factor);
+	fprintf(stderr, "       -y INT        seed occurrence for the 3rd round seeding [%ld]\n", (long)passOptions->max_mem_intv);
+    //fprintf(stderr, "       -s INT        look for internal seeds inside a seed with less than INT occ [%d]\n", passOptions->split_width); // Disabled in BWA
+	fprintf(stderr, "       -c INT        skip seeds with more than INT occurrences [%d]\n", passOptions->max_occ);
+	fprintf(stderr, "       -D FLOAT      drop chains shorter than FLOAT fraction of the longest overlapping chain [%.2f]\n", passOptions->drop_ratio);
+	fprintf(stderr, "       -W INT        discard a chain if seeded bases shorter than INT [0]\n");
+	fprintf(stderr, "       -m INT        perform at most INT rounds of mate rescues for each read [%d]\n", passOptions->max_matesw);
+	//fprintf(stderr, "       -S            skip mate rescue\n");
+	//fprintf(stderr, "       -P            skip pairing; mate rescue performed unless -S also in use\n");
+	fprintf(stderr, "       -e            discard full-length exact matches\n");
+
+	fprintf(stderr, "\nScoring options:\n\n");
+	fprintf(stderr, "       -A INT        score for a sequence match, which scales options -TdBOELU unless overridden [%d]\n", passOptions->a);
+	fprintf(stderr, "       -B INT        penalty for a mismatch [%d]\n", passOptions->b);
+	fprintf(stderr, "       -O INT[,INT]  gap open penalties for deletions and insertions [%d,%d]\n", passOptions->o_del, passOptions->o_ins);
+	fprintf(stderr, "       -E INT[,INT]  gap extension penalty; a gap of size k cost '{-O} + {-E}*k' [%d,%d]\n", passOptions->e_del, passOptions->e_ins);
+	fprintf(stderr, "       -L INT[,INT]  penalty for 5'- and 3'-end clipping [%d,%d]\n", passOptions->pen_clip5, passOptions->pen_clip3);
+	fprintf(stderr, "       -U INT        penalty for an unpaired read pair [%d]\n\n", passOptions->pen_unpaired);
+	fprintf(stderr, "       -x STR        read type. Setting -x changes multiple parameters unless overriden [null]\n");
+	fprintf(stderr, "                     pacbio: -k17 -W40 -r10 -A1 -B1 -O1 -E1 -L0  (PacBio reads to ref)\n");
+	fprintf(stderr, "                     ont2d: -k14 -W20 -r10 -A1 -B1 -O1 -E1 -L0  (Oxford Nanopore 2D-reads to ref)\n");
+	fprintf(stderr, "                     intractg: -B9 -O16 -L5  (intra-species contigs to ref)\n");
+//		fprintf(stderr, "                     pbread: -k13 -W40 -c1000 -r10 -A1 -B1 -O1 -E1 -N25 -FeaD.001\n");
+	fprintf(stderr, "\nInput/output options:\n\n");
+	fprintf(stderr, "       -o STR        activate PALADIN reporting using STR as an output file prefix.  Files generated as follows:\n");
+	fprintf(stderr, "                        STR.sam - alignment data (will not be sent to stdout)\n");
+	fprintf(stderr, "                        STR_uniprot.tsv - Tab delimited UniProt report (normal alignment mode)\n");
+	fprintf(stderr, "                        STR_uniprot_primary.tsv - Tab delimited UniProt report, primary alignments (all alignments mode)\n");
+	fprintf(stderr, "                        STR_uniprot_secondary.tsv - Tab delimited UniProt report, secondary alignments (all alignments mode)\n\n");
+	fprintf(stderr, "       -u INT        report type generated when using reporting and a UniProt reference [%d]\n", passOptions->outputType);
+	fprintf(stderr, "                        0: Simple ID summary report\n");
+	fprintf(stderr, "                        1: Detailed report (Contacts uniprot.org)\n\n");
+	fprintf(stderr, "       -g            generate detected ORF nucleotide sequence FASTA\n");
+	fprintf(stderr, "       -n            keep protein sequence after alignment\n");
+	//fprintf(stderr, "       -p            smart pairing (ignoring in2.fq)\n");
+	fprintf(stderr, "       -R STR        read group header line such as '@RG\\tID:foo\\tSM:bar' [null]\n");
+	fprintf(stderr, "       -H STR/FILE   insert STR to header if it starts with @; or insert lines in FILE [null]\n");
+	fprintf(stderr, "       -j            treat ALT contigs as part of the primary assembly (i.e. ignore <idxbase>.alt file)\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "       -v INT        verbose level: 1=error, 2=warning, 3=message, 4+=debugging [%d]\n", bwa_verbose);
+	fprintf(stderr, "       -T INT        minimum score to output [%d]\n", passOptions->T);
+	fprintf(stderr, "       -h INT[,INT]  if there are <INT hits with score >80%% of the max score, output all in XA [%d,%d]\n", passOptions->max_XA_hits, passOptions->max_XA_hits_alt);
+	fprintf(stderr, "       -a            output all alignments for SE or unpaired PE\n");
+	fprintf(stderr, "       -C            append FASTA/FASTQ comment to SAM output\n");
+	fprintf(stderr, "       -V            output the reference FASTA header in the XR tag\n");
+	fprintf(stderr, "       -Y            use soft clipping for supplementary alignments\n");
+	fprintf(stderr, "       -M            mark shorter split hits as secondary\n\n");
+	fprintf(stderr, "       -I FLOAT[,FLOAT[,INT[,INT]]]\n");
+	fprintf(stderr, "                     specify the mean, standard deviation (10%% of the mean if absent), max\n");
+	fprintf(stderr, "                     (4 sigma from the mean if absent) and min of the insert size distribution.\n");
+	fprintf(stderr, "                     FR orientation only. [inferred]\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Note: Please read the man page for detailed description of the command line and options.\n");
+	fprintf(stderr, "\n");
+
+	return 1;
 }
