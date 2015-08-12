@@ -113,12 +113,12 @@ int command_align(int argc, char *argv[]) {
 
 	aux.opt = opt = mem_opt_init();
 	memset(&opt0, 0, sizeof(mem_opt_t));
-	opt->proteinFlag |= ALIGN_FLAG_BRUTEORF; // Temporary
 
-	while ((c = getopt(argc, argv, "1epabgnFMCSPVYju:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epabgnMCSPVYJjf:F:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'u') opt->outputType = atoi(optarg);
-		//else if (c == 'o') opt->min_orf_len = atoi(optarg);
+		else if (c == 'f') opt->min_orf_len = atoi(optarg);
+		else if (c == 'F') opt->min_orf_percent = atof(optarg);
 		else if (c == 'o') prefixName = optarg;
 		else if (c == '1') no_mt_io = 1;
 		else if (c == 'x') mode = optarg;
@@ -137,9 +137,10 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'F') opt->flag |= MEM_F_ALN_REG;
 		else if (c == 'Y') opt->flag |= MEM_F_SOFTCLIP;
 		else if (c == 'V') opt->flag |= MEM_F_REF_HDR;
-		else if (c == 'b') opt->proteinFlag &= ~ALIGN_FLAG_BRUTEORF;
+		else if (c == 'b') opt->proteinFlag &= ~ALIGN_FLAG_BRUTE_ORF;
 		else if (c == 'g') opt->proteinFlag |= ALIGN_FLAG_GEN_NT;
 		else if (c == 'n') opt->proteinFlag |= ALIGN_FLAG_KEEP_PRO;
+		else if (c == 'J') opt->proteinFlag &= ~ALIGN_FLAG_ADJUST_ORF;
 		else if (c == 'c') opt->max_occ = atoi(optarg), opt0.max_occ = 1;
 		else if (c == 'd') opt->zdrop = atoi(optarg), opt0.zdrop = 1;
 		else if (c == 'v') bwa_verbose = atoi(optarg);
@@ -389,9 +390,12 @@ int renderAlignUsage(const mem_opt_t * passOptions) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: paladin align [options] <idxbase> <in.fq>\n\n");
 
-	fprintf(stderr, "Protein detection options:\n\n");
+	fprintf(stderr, "Gene detection options:\n\n");
 	fprintf(stderr, "       -b            disable brute force ORF detection\n");
-	//fprintf(stderr, "       -l INT        minimum ORF length accepted during protein detection (DISABLED) [%d]\n", passOptions->min_orf_len);
+	fprintf(stderr, "       -J            do not adjust minimum ORF length (constant value) for shorter read lengths\n");
+	fprintf(stderr, "       -f INT        minimum ORF length accepted (as constant value) [%d]\n", passOptions->min_orf_len);
+	fprintf(stderr, "       -F FLOAT      minimum ORF length accepted (as percentage of read length) [%.2f]\n", passOptions->min_orf_percent);
+
 
 	fprintf(stderr, "\nAlignment options:\n\n");
 	fprintf(stderr, "       -t INT        number of threads [%d]\n", passOptions->n_threads);

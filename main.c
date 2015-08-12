@@ -1,6 +1,7 @@
 /*
    The MIT License
 
+   Copyright (c) 2015 by Anthony Westbrook, University of New Hampshire <anthonyw@wildcats.unh.edu>
    Copyright (c) 2011 by Attractive Chaos <attractor@live.co.uk>
 
    Permission is hereby granted, free of charge, to any person obtaining
@@ -22,27 +23,36 @@
    ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
+*/
 
-   Contact: Toni Westbrook <anthonyw@wildcats.unh.edu>
-
+/*
    PALADIN (Protein Alignment and Detection Interface)
 
-   PALADIN is a protein sequence alignment tool based on the BWA source.  Like BWA, it aligns
-   sequences via read-mapping using BWT.  PALADIN, however, offers the novel approach
-   of aligning in the protein space.  During the index phase, it processes the reference genome's
+   PALADIN is a protein sequence alignment tool designed for the accurate
+   functional characterization of metagenomes.
+
+   PALADIN is based on BWA, and aligns sequences via read-mapping using
+   BWT. PALADIN, however, offers the novel approach of aligning in the
+   protein space. During the index phase, it processes the reference genome's
    nucleotide sequences and GTF/GFF annotation containing CDS entries, first
-   converting these transcripts into the corresponding protein sequences, then creating the BWT
-   and suffix array from these proteins.  During the alignment phase, it attempts to find ORFs in
-   the read sequences, then converts these to protein sequences, and aligns to the reference
-   protein sequences.
+   converting these transcripts into the corresponding protein sequences, then
+   creating the BWT and suffix array from these proteins. The process of
+   translation is skiped when providing a protein reference file (e.g., UniProt)
+   for mapping. During the alignment phase, it attempts to find ORFs in the
+   read sequences, then converts these to protein sequences, and aligns to the
+   reference protein sequences.
 
-   PALADIN currently only supports single-end reads, and BWA-MEM based alignment.  It makes
-   use of many BWA parameters and is therefore compatible with many of its command line arguments.
+   PALADIN currently only supports single-end reads (or reads merged with FLASH,
+   PEAR, abyss-mergepairs), and BWA-MEM based alignment. It makes use of many
+   BWA parameters and is therefore compatible with many of its command line
+   arguments.
 
-   PALADIN IS CURRENTLY ALPHA AND HAS NOT BEEN FULLY TESTED.  USE AT YOUR OWN RISK.
+   PALADIN may output a standard SAM file, or a text file containing a
+   UniProt-generated functional profile. This text file may be used for all
+   downstream characterizations.
 
-   For information regarding BWA, please contact its author, Heng Li <lh3@sanger.ac.uk>
-
+   Contact: Toni Westbrook <anthonyw@wildcats.unh.edu>
+   For information regarding BWA, contact Heng Li <lh3@sanger.ac.uk>
 */
 
 #include <stdio.h>
@@ -130,5 +140,3 @@ int renderVersion() {
 
 	return 1;
 }
-
-

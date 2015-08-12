@@ -174,8 +174,8 @@ int convertToAA(char * passSequence, struct CDS * passCDS, char ** retSequence, 
 	return 0;
 }
 
-// Calculate last full position of ORF 
-long getLastORFPos(long passLength, int passFrame) {
+// Calculate last aligned position in sequence
+long getLastAlignedPos(long passLength, int passFrame) {
 	long retPos;
 
 	if (passFrame < 3) {
@@ -192,6 +192,26 @@ long getLastORFPos(long passLength, int passFrame) {
 	return retPos;
 }
 
+long getLastAlignedOrfPos(long passLength, int passFrame, mem_opt_t * passOptions) {
+	long retValue;
+
+	if (passOptions->min_orf_percent) {
+		// Minimum ORF length specified as a read length percentage
+		retValue = getLastAlignedPos(passOptions->min_orf_percent * passLength, passFrame);
+	}
+	else {
+		// Minimum ORF length specified as constant value, check for adjustment
+		if ((passOptions->proteinFlag & ALIGN_FLAG_ADJUST_ORF) && (passLength < passOptions->min_orf_len)) {
+			retValue = getLastAlignedPos(passLength, passFrame);
+		}
+		else {
+			retValue = getLastAlignedPos(passOptions->min_orf_len, passFrame);
+		}
+	}
+
+
+	return retValue;
+}
 
 // Add new entry to dynamic history array
 void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned long passIdx ) {
@@ -266,28 +286,35 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct
 
 // Scan nucleotide sequence for all recognized ORFs, return as CDS array
 int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, struct CDS * * retCDS, unsigned long * retCount) {
-	int frameIdx, strandDir, relFrame, searchIdx, highIdx;
-	long * history[2][6], historySize[6], stopCounts[6], stopOrder[6];
-	long gcCount, seqIdx, absIdx;
+	int frameIdx, addIdx, strandDir, relFrame;
+	long seqIdx, absIdx, lastStart;
+	long endSeqPos, endOrfPos;
 	unsigned char currentCodon;
+	long * history[2][6], historySize[6];
 
 	// Initialize values
-	gcCount = 0;
+	*retCDS = NULL;
+	*retCount = 0;
 	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
 		history[0][frameIdx] = NULL;
 		history[1][frameIdx] = NULL;
 		historySize[frameIdx] = 0;
-		stopCounts[frameIdx] = 0;
-		stopOrder[frameIdx] = 0;
 	}
 
-	// Collect statistics (stop codon counts and GC content)
 	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
 		strandDir = (frameIdx < 3 ? 1 : -1);
 		relFrame = frameIdx % 3;
+		lastStart = relFrame;
+		endSeqPos = getLastAlignedPos(passLength, relFrame);
+		endOrfPos = getLastAlignedOrfPos(passLength, relFrame, passOptions);
+
+		// Adjust min ORF length if requested
+		if ((passOptions->proteinFlag & ALIGN_FLAG_ADJUST_ORF) && (passLength < passOptions->min_orf_len)) {
+			endOrfPos = getLastAlignedPos(passLength, relFrame);
+		}
 
 		// Iterate through all codons in this read frame
-		for (seqIdx = (frameIdx % 3) ; seqIdx + 3 <= passLength ; seqIdx += 3) {
+		for (seqIdx = relFrame ; seqIdx + 2 <= endSeqPos ; seqIdx += 3) {
 			// Calculate absolute index from relative
 			absIdx = seqIdx;
 			if (strandDir == -1) absIdx = absIdx * -1 + passLength - 1;
@@ -295,85 +322,35 @@ int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * pa
 			// Encode codon
 			currentCodon = encodeCodon(passSequence + absIdx, strandDir);
 
-			// Record occurrence of stop codon (TAA - 0x30, TAG - 0x32, TGA - 0x38)
-			if ((currentCodon == 0x30) || (currentCodon == 0x32) || (currentCodon == 0x38)) {
-				stopCounts[frameIdx]++;
-				stopOrder[frameIdx]++;
-			}
+			// Check for stop codon (TAA - 0x30, TAG - 0x32, TGA - 0x38) or EOS
+			if ((currentCodon == 0x30) || (currentCodon == 0x32) || (currentCodon == 0x38) || (seqIdx + 2 == endSeqPos)) {
+				if (seqIdx + relFrame + 2 - lastStart >= endOrfPos) {
+					// Translate current (non-brute) or all frames (brute)
+					for (addIdx = 0 ; addIdx < 6 ; addIdx++) {
+						if ((passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) || (addIdx == frameIdx)) {
+							strandDir = (addIdx < 3 ? 1 : -1);
+							relFrame = addIdx % 3;
 
-			// Detect GC content on frame 0
-			if (frameIdx == 0) {
-				if (((currentCodon & 0x03) == 0x01) || ((currentCodon & 0x03) == 0x02)) gcCount++;
-				if (((currentCodon & 0x0C) == 0x04) || ((currentCodon & 0x0C) == 0x08)) gcCount++;
-				if (((currentCodon & 0x30) == 0x10) || ((currentCodon & 0x30) == 0x20)) gcCount++;
-			}
-		}
-	}
-
-	// Use occurrence counts to generate frame order 
-	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-		highIdx = 0;
-
-		for (searchIdx = 0 ; searchIdx < 6 ; searchIdx++) {
-			if (stopOrder[searchIdx] > stopOrder[highIdx]) {
-				highIdx = searchIdx;
-			}
-		}
-
-		// Record order as negatives for inline efficiency, then convert after
-		stopOrder[highIdx] = -5 + frameIdx;
-	}
-
-	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-		stopOrder[frameIdx] *= -1;
-	}
-
-	// All modes iterate through all frames
-	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-		strandDir = (frameIdx < 3 ? 1 : -1);
-		relFrame = frameIdx % 3;
-
-		// Index is multiframe, stop at first ORF
-		if (passOptions->indexFlag & INDEX_FLAG_MF) {
-			if (stopCounts[frameIdx] == 0) {
-				addORFHistory(history, historySize, frameIdx);
-				history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
-				history[1][frameIdx][historySize[frameIdx] - 1] = getLastORFPos(passLength, frameIdx);
-				break;
-			}
-		}
-
-		// Index is single frame, check for algorithm variant
-		else {
-			if (passOptions->proteinFlag & ALIGN_FLAG_BRUTEORF) {
-				// Brute force ORF detection - encode all frames if ORF detected
-				if (stopCounts[frameIdx] == 0) {
-					for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-						strandDir = (frameIdx < 3 ? 1 : -1);
-						relFrame = frameIdx % 3;
-
-						addORFHistory(history, historySize, frameIdx);
-						history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
-						history[1][frameIdx][historySize[frameIdx] - 1] = getLastORFPos(passLength, frameIdx);
+							addORFHistory(history, historySize, addIdx);
+							history[0][addIdx][historySize[addIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
+							history[1][addIdx][historySize[addIdx] - 1] = getLastAlignedPos(passLength, addIdx);
+						}
 					}
 
 					break;
 				}
+
+				lastStart = seqIdx + 3;
 			}
-			else {
-				// Smart ORF detection - to be filled in
-				if (stopCounts[frameIdx] <= 0) {
-					if ((stopOrder[(frameIdx + 4) % 6] != 0) && (stopOrder[(frameIdx + 5) % 6] != 0)) {
-						addORFHistory(history, historySize, frameIdx);
-						history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
-						history[1][frameIdx][historySize[frameIdx] - 1] = getLastORFPos(passLength, frameIdx);
-					}
-				}
-			}
+		}
+
+		// If we have brute-force match, end processing
+		if (frameIdx < 5) {
+			if (historySize[frameIdx + 1]) break;
 		}
 	}
 
-	// Filter, remove overlaps, create CDS array
+	// Convert history array into CDS entries
 	compileORFHistory(history, historySize, retCDS, retCount);
 
 	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
@@ -382,44 +359,6 @@ int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * pa
 	}
 
 	return 0;
-
-
-		// 63%
-		//if ((stopCounts[(frameIdx + 0) % 6] <= 1) &&
-		//	((stopOrder[(frameIdx + 4) % 6] != 0) && (stopOrder[(frameIdx + 5) % 6] != 0))){
-
-
-		// 50%
-		//if (((stopOrder[(frameIdx + 0) % 6] == 5) && (stopOrder[(frameIdx + 3) % 6] == 4)) ||
-		//	((stopOrder[(frameIdx + 0) % 6] == 4) && (stopOrder[(frameIdx + 3) % 6] == 5))){
-
-
-		// First full ORF
-//		if ((stopCounts[frameIdx] == 0)) {
-/*			(stopOrder[(frameIdx + 0) % 6] <= 1) && (stopOrder[(frameIdx + 3) % 6] <= 1) &&
-			(stopOrder[(frameIdx + 4) % 6] >= 4) && (stopOrder[(frameIdx + 5) % 6] >= 4) &&
-			((stopOrder[(frameIdx + 1) % 6] == 2) || (stopOrder[(frameIdx + 1) % 6] == 3)) &&
-			((stopOrder[(frameIdx + 2) % 6] == 2) || (stopOrder[(frameIdx + 2) % 6] == 3))) {*/
-		//if ((stopCounts[(frameIdx + 0) % 6] <= 1) && (stopCounts[(frameIdx + 3) % 6] <= 1)) {
-
-		//if ((stopCounts[frameIdx] < 1) &&
-			//((stopOrder[frameIdx] == 0) || (stopOrder[frameIdx] == 1))){ //&&
-			//((stopCounts[(frameIdx + 3) % 6] == 0) || (stopCounts[(frameIdx + 3) % 6] == 1))) {// &&
-			//((stopCounts[(frameIdx + 2) % 6] == 2) || (stopCounts[(frameIdx + 2) % 6] == 3)) &&
-			//(stopCounts[(frameIdx + 2) % 6] == 2) && (stopCounts[(frameIdx + 4) % 6] == 5)) {
-			//((stopOrder[(frameIdx + 4) % 6] == 4) || (stopOrder[(frameIdx + 4) % 6] == 5))) {
-
-	// Do something with this
-	/*
-	if (!stopFound) {
-		addORFHistory(history, historySize, historyIdx);
-		history[0][historyIdx][historySize[historyIdx] - 1] = (strandIdx == 0) ? frameIdx : passLength - 1 - frameIdx;
-		history[1][historyIdx][historySize[historyIdx] - 1] = (strandIdx == 0) ? passLength - 4 + frameIdx : frameIdx;
-		compileORFHistory(history, historySize, passMinORF, retCDS, retCount);
-		return 0;
-	}
-	*/
-
 }
 
 // Iterate through GFF annotation file, return next available CDS entry
@@ -538,12 +477,12 @@ int writeIndexCodingProtein(const char * passPrefix, const char * passProName, i
             for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
             	if (frameIdx < 3) {
                     currentCDS.startIdx = (frameIdx % 3);
-                    currentCDS.endIdx = getLastORFPos(seq->seq.l, frameIdx);
+                    currentCDS.endIdx = getLastAlignedPos(seq->seq.l, frameIdx);
                     currentCDS.strand = 1;
                     currentCDS.phase = 0;
             	}
             	else {
-                    currentCDS.startIdx = getLastORFPos(seq->seq.l, frameIdx);
+                    currentCDS.startIdx = getLastAlignedPos(seq->seq.l, frameIdx);
                     currentCDS.endIdx = seq->seq.l - 1 - (frameIdx % 3);
                     currentCDS.strand = -1;
                     currentCDS.phase = 0;
@@ -649,9 +588,9 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 	unsigned long seqIdx, outputSize, orfCount, orfIdx;
 
 	// Check for incompatible combinations
-	if ((passOptions->proteinFlag & ALIGN_FLAG_BRUTEORF) && (passOptions->indexFlag & INDEX_FLAG_MF)) {
+	if ((passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) && (passOptions->indexFlag & INDEX_FLAG_MF)) {
 		fprintf(stderr, "[paladin_align] Brute force ORF detection redundant to MF index, disabling...\n");
-		passOptions->flag &= ~ALIGN_FLAG_BRUTEORF;
+		passOptions->flag &= ~ALIGN_FLAG_BRUTE_ORF;
 	}
 
 	// Prepare file handles
@@ -672,7 +611,7 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 
 	while(kseq_read(seq) >= 0) {
 		// Search for ORFs
-		getSequenceORF(seq->seq.s, seq->seq.l-1, passOptions, &orfList, &orfCount);
+		getSequenceORF(seq->seq.s, seq->seq.l, passOptions, &orfList, &orfCount);
 
 		// Write out the corresponding protein sequence for each ORF
 		for (orfIdx = 0 ; orfIdx < orfCount ; orfIdx++) {

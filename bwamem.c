@@ -54,7 +54,6 @@ mem_opt_t *mem_opt_init()
 	o->outputStream = stdout;
 	o->outputType = OUTPUT_TYPE_UNIPROT_FULL;
 	o->flag = 0;
-	o->proteinFlag = 0;
 	o->a = 1; o->b = 1; //4;
 	o->o_del = o->o_ins = 6;
 	o->e_del = o->e_ins = 1;
@@ -63,10 +62,12 @@ mem_opt_t *mem_opt_init()
 	o->zdrop = 100;
 	o->pen_unpaired = 17;
 	o->pen_clip5 = o->pen_clip3 = 5;
-
 	o->max_mem_intv = 20;
-
-	o->min_orf_len = 180;
+	o->min_orf_len = 250;
+	o->min_orf_percent = 0;
+	o->proteinFlag = 0;
+	o->proteinFlag |= ALIGN_FLAG_BRUTE_ORF;
+	o->proteinFlag |= ALIGN_FLAG_ADJUST_ORF;
 	o->min_seed_len = 11;
 	o->split_width = 10;
 	o->max_occ = 500;

@@ -1,5 +1,16 @@
 # Change Log
 
+## [1.0.0] - 2015-08-11
+### Added
+- Minimum ORF length filtering
+- Related options (Constant minimum length, percentage minimum length, adjustment for smaller read lengths)
+
+### Fixed
+- Translating edges of detected ORFs (previously were truncated)
+
+### Changed
+- A few minor description changes
+
 ## [0.2.1] - 2015-08-06
 ### Fixed
 - Alignment stats shown at completion now properly account for supplementary alignments
