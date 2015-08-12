@@ -44,7 +44,8 @@ typedef struct {
 	int flag;               // see MEM_F_* macros
 	int proteinFlag;		// see ALIGN_FLAG_* protein-related defines
 	int indexFlag;			// see INDEX_FLAG_* index/frame related defines
-	int min_orf_len;		// minimum ORF length accepted during protein detection
+	int min_orf_len;		// minimum ORF length accepted during protein detection (as constant value)
+	float min_orf_percent;	// minimum orf length accepted during protein detection (as percent of read length)
 	int min_seed_len;       // minimum seed length
 	int min_chain_weight;
 	int max_chain_extend;

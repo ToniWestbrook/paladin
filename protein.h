@@ -13,9 +13,10 @@
 #define OUTPUT_TYPE_UNIPROT_SIMPLE 0
 #define OUTPUT_TYPE_UNIPROT_FULL   1
 
-#define ALIGN_FLAG_BRUTEORF  0x0001
-#define ALIGN_FLAG_GEN_NT    0x0002
-#define ALIGN_FLAG_KEEP_PRO  0x0004
+#define ALIGN_FLAG_BRUTE_ORF   0x0001
+#define ALIGN_FLAG_GEN_NT     0x0002
+#define ALIGN_FLAG_KEEP_PRO   0x0004
+#define ALIGN_FLAG_ADJUST_ORF 0x0008
 
 extern unsigned char codon_aa_hash[64];
 
@@ -37,7 +38,8 @@ unsigned char encodeCodon(char * passSequence, int passStrand);
 int convertToAA(char * passSequence, struct CDS * passCDS, char ** retSequence, unsigned long * retSize);
 
 // ORF Detection
-long getLastORFPos(long passLength, int passFrame);
+long getLastAlignedPos(long passLength, int passFrame);
+long getLastAlignedOrfPos(long passLength, int passFrame, mem_opt_t * passOptions);
 void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned long passIdx);
 void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct CDS * * retCDS, unsigned long * retCount);
 int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, struct CDS * * retCDS, unsigned long * retCount);
