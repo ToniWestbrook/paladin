@@ -35,8 +35,8 @@ static void *process(void *shared, int step, void *_data) {
 				ret->seqs[i].comment = 0;
 			}
 		for (i = 0; i < ret->n_seqs; ++i) size += ret->seqs[i].l_seq;
-		if (bwa_verbose >= 3)
-			fprintf(stderr, "[M::%s] read %d sequences (%ld bp)...\n", __func__, ret->n_seqs, (long)size);
+
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Read %d ORF sequences (%ld bp)...\n", ret->n_seqs, (long)size);
 
 		return ret;
 	} else if (step == 1) {
@@ -46,8 +46,9 @@ static void *process(void *shared, int step, void *_data) {
 			int n_sep[2];
 			mem_opt_t tmp_opt = *opt;
 			bseq_classify(data->n_seqs, data->seqs, n_sep, sep);
-			if (bwa_verbose >= 3)
-				fprintf(stderr, "[M::%s] %d single-end sequences; %d paired-end sequences\n", __func__, n_sep[0], n_sep[1]);
+
+			logMessage(__func__, LOG_LEVEL_MESSAGE, "%d single-end sequences; %d paired-end sequences\n",  n_sep[0], n_sep[1]);
+
 			if (n_sep[0]) {
 				tmp_opt.flag &= ~MEM_F_PE;
 				mem_process_seqs(&tmp_opt, idx->bwt, idx->bns, idx->pac, aux->n_processed, n_sep[0], sep[0], 0);
@@ -213,9 +214,10 @@ int command_align(int argc, char *argv[]) {
 				pes[1].high = (int)(strtod(p+1, &p) + .499);
 			if (*p != 0 && ispunct(*p) && isdigit(p[1]))
 				pes[1].low  = (int)(strtod(p+1, &p) + .499);
-			if (bwa_verbose >= 3)
-				fprintf(stderr, "[M::%s] mean insert size: %.3f, stddev: %.3f, max: %d, min: %d\n",
-						__func__, pes[1].avg, pes[1].std, pes[1].high, pes[1].low);
+
+			logMessage(__func__, LOG_LEVEL_MESSAGE, "mean insert size: %.3f, stddev: %.3f, max: %d, min: %d\n",
+			   									     pes[1].avg, pes[1].std, pes[1].high, pes[1].low);
+
 		}
 		else return 1;
 	}
@@ -265,7 +267,7 @@ int command_align(int argc, char *argv[]) {
 				if (!opt0.pen_clip3) opt->pen_clip3 = 0;
 			}
 		} else {
-			fprintf(stderr, "[E::%s] unknown read type '%s'\n", __func__, mode);
+			logMessage(__func__, LOG_LEVEL_ERROR, "Unknown read type '%s'\n", mode);
 			return 1; // FIXME memory leak
 		}
 	} else update_a(opt, &opt0);
@@ -273,18 +275,57 @@ int command_align(int argc, char *argv[]) {
 	// Create scoring weight matrix
 	bwa_fill_scmat(opt->a, opt->b, opt->mat);
 
+	// Prepare header check and filenames
+	indexProName = malloc(strlen(argv[optind]) + 5);
+	readsProName = malloc(strlen(argv[optind + 1]) + 5);
+	sprintf(indexProName, "%s.pro", argv[optind]);
+	sprintf(readsProName, "%s.pro", argv[optind + 1]);
+	opt->indexInfo = getIndexHeader(indexProName);
+
+	// Before loading index, ensure it's compatible
+	switch (getIndexCompatible(opt->indexInfo)) {
+		case INDEX_COMPATIBILITY_NONE:
+			logMessage(__func__, LOG_LEVEL_ERROR,
+					   "Index version %d.%d.%d is incompatible, please reindex the reference.\n",
+						opt->indexInfo.version[0],
+						opt->indexInfo.version[1],
+						opt->indexInfo.version[2]);
+
+			return 1;
+
+		case INDEX_COMPATBILITY_FUTURE:
+			logMessage(__func__, LOG_LEVEL_WARNING,
+					   "Index version %d.%d.%d is newer than program version, compatibility not guaranteed.\n",
+						opt->indexInfo.version[0],
+						opt->indexInfo.version[1],
+						opt->indexInfo.version[2]);
+
+			break;
+		default:
+			break;
+	}
+
 	// Load index
 	aux.idx = index_load_from_shm(argv[optind]);
 	if (aux.idx == 0) {
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Loading the index for reference '%s'...\n", argv[optind]);
 		if ((aux.idx = index_load(argv[optind], BWA_IDX_ALL)) == 0) return 1; // FIXME: memory leak
-	} else if (bwa_verbose >= 3)
-		fprintf(stderr, "[M::%s] load the paladin index from shared memory\n", __func__);
+	}
+	else {
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Loading the index from shared memory...\n");
+	}
+
 	if (ignore_alt)
 		for (i = 0; i < aux.idx->bns->n_seqs; ++i)
 			aux.idx->bns->anns[i].is_alt = 0;
 
 	// Ready output files if requested (else stdout)
 	if (prefixName != NULL) {
+		if (opt->indexInfo.referenceType == 0) {
+			logMessage(__func__, LOG_LEVEL_ERROR, "Reporting can only be used on prepared indices.\n");
+ 			return 1;
+		}
+
 		samName = malloc(strlen(prefixName) + 5);
 		reportPriName = malloc(strlen(prefixName) + 23);
 		reportSecName = malloc(strlen(prefixName) + 23);
@@ -303,32 +344,25 @@ int command_align(int argc, char *argv[]) {
 
 	}
 
-	// Detect proteins and write to .pro file
-	indexProName = malloc(strlen(argv[optind]) + 5);
-	readsProName = malloc(strlen(argv[optind + 1]) + 5);
-	sprintf(indexProName, "%s.pro", argv[optind]);
-	sprintf(readsProName, "%s.pro", argv[optind + 1]);
-	opt->indexFlag = getIndexHeader(indexProName);
-
 	// Detect ORFs and write protein file
 	writeReadsProtein(argv[optind + 1], readsProName, opt);
 
 	// Open ORFs sequence
 	ko = kopen(readsProName, &fd);
 	if (ko == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to open file `%s'.\n", __func__, argv[optind + 1]);
+		logMessage(__func__, LOG_LEVEL_ERROR, "Failed to open file `%s'.\n", argv[optind + 1]);
 		return 1;
 	}
+
 	fp = gzdopen(fd, "r");
 	aux.ks = kseq_init(fp);
 	if (optind + 2 < argc) {
 		if (opt->flag&MEM_F_PE) {
-			if (bwa_verbose >= 2)
-				fprintf(stderr, "[W::%s] when '-p' is in use, the second query file is ignored.\n", __func__);
+			logMessage(__func__, LOG_LEVEL_WARNING, "When '-p' is in use, the second query file is ignored.\n");
 		} else {
 			ko2 = kopen(argv[optind + 2], &fd2);
 			if (ko2 == 0) {
-				if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to open file `%s'.\n", __func__, argv[optind + 2]);
+				logMessage(__func__, LOG_LEVEL_ERROR, "Failed to open file `%s'.\n", argv[optind + 2]);
 				return 1;
 			}
 			fp2 = gzdopen(fd2, "r");

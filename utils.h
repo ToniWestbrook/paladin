@@ -30,7 +30,13 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <zlib.h>
+
+#define LOG_LEVEL_ERROR 1
+#define LOG_LEVEL_WARNING 2
+#define LOG_LEVEL_MESSAGE 3
+#define LOG_LEVEL_DEBUG 4
 
 #ifdef __GNUC__
 // Tell GCC to validate printf format string and args
@@ -58,6 +64,9 @@ typedef struct { size_t n, m; pair64_t *a; } pair64_v;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+	void logMessage(const char * passFunction, int passLevel, char * passFormat, ...);
+	void logMessageRaw(int passLevel, char * passFormat, ...);
 
 	void err_fatal(const char *header, const char *fmt, ...) ATTRIBUTE((noreturn));
 	void err_fatal_core(const char *header, const char *fmt, ...) ATTRIBUTE((noreturn));

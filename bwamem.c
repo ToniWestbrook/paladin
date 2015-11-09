@@ -58,7 +58,7 @@ mem_opt_t *mem_opt_init()
 	o->o_del = o->o_ins = 6;
 	o->e_del = o->e_ins = 1;
 	o->w = 100;
-	o->T = 30;
+	o->T = 20;
 	o->zdrop = 100;
 	o->pen_unpaired = 17;
 	o->pen_clip5 = o->pen_clip3 = 5;
@@ -381,7 +381,7 @@ mem_chain_v mem_chain(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 	#undef traverse_func
 
 	for (i = 0; i < chain.n; ++i) chain.a[i].frac_rep = (float)l_rep / len;
-	if (bwa_verbose >= 4) printf("* fraction of repetitive seeds: %.3f\n", (float)l_rep / len);
+	logMessage(__func__, LOG_LEVEL_DEBUG, "* fraction of repetitive seeds: %.3f\n", (float)l_rep / len);
 
 	kb_destroy(chn, tree);
 	return chain;
@@ -1303,8 +1303,7 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 	// Prepare Uniprot data (fully if requested)
 	addUniprotList(&w, n, opt->outputStream != stdout);
 
-	if (bwa_verbose >= 3)
-		fprintf(stderr, "[M::%s] Processed %d reads in %.3f CPU sec, %.3f real sec\n", __func__, n, cputime() - ctime, realtime() - rtime);
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Processed %d ORF sequences in %.3f CPU sec, %.3f real sec\n", n, cputime() - ctime, realtime() - rtime);
 
 	for (i = 0 ; i < n ; i++) {
 		free(w.regs[i].a);

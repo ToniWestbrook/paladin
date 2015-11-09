@@ -59,8 +59,14 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
+#define STR_CONVERT(x) #x
+#define STR(x) STR_CONVERT(x)
+
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "1.0.0"
+#define PACKAGE_VERSION STR(PACKAGE_VERSION_MAJOR) "." STR(PACKAGE_VERSION_MINOR) "." STR(PACKAGE_VERSION_REV)
+#define PACKAGE_VERSION_MAJOR 1
+#define PACKAGE_VERSION_MINOR 1
+#define PACKAGE_VERSION_REV 0
 #endif
 
 // Render usage and version details

@@ -4,6 +4,7 @@
 #include "bwt.h"
 #include "bntseq.h"
 #include "bwa.h"
+#include "bwtindex.h"
 
 #define MEM_MAPQ_COEF 30.0
 #define MEM_MAPQ_MAX  60
@@ -43,7 +44,7 @@ typedef struct {
 	int T;                  // output score threshold; only affecting output
 	int flag;               // see MEM_F_* macros
 	int proteinFlag;		// see ALIGN_FLAG_* protein-related defines
-	int indexFlag;			// see INDEX_FLAG_* index/frame related defines
+	IndexHeader indexInfo;	// reference, prep, and indexing info
 	int min_orf_len;		// minimum ORF length accepted during protein detection (as constant value)
 	float min_orf_percent;	// minimum orf length accepted during protein detection (as percent of read length)
 	int min_seed_len;       // minimum seed length

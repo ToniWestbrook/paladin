@@ -51,7 +51,7 @@ void testReadHeader(char * passOrig, char * retNew) {
 	FILE * gffHandle;
 	int parseIdx, colonCount;
 	unsigned long searchIdx, line;
-	struct CDS currentCDS;
+	CDS currentCDS;
 
 	retNew[0] = 0;
 
@@ -76,40 +76,6 @@ void testReadHeader(char * passOrig, char * retNew) {
 		fclose(gffHandle);
 	}
 }
-
-// Write header for index pro file
-void writeIndexHeader(FILE * passFilePtr, int passProtein, int passMulti) {
-	fprintf(passFilePtr, ">NT=%d:MF=%d:VER=%s\n", passProtein, passMulti, PACKAGE_VERSION);
-}
-
-// Get header info from index pro file
-char getIndexHeader(char * passFile) {
-	FILE * filePtr;
-	int readNT, readMF;
-	char retValue;
-	
-	// Open file and read header information
-	filePtr = fopen(passFile, "r");
-	
-    if (filePtr == NULL) {
-    	fprintf(stderr, "[%s] fail to open file '%s' : %s\n", __func__, passFile, errno ? strerror(errno) : "Out of memory");
-    	exit(EXIT_FAILURE);
-    }
-
-
-	if (fscanf(filePtr, ">NT=%d:MF=%d", &readNT, &readMF) != 2) {
-    	fprintf(stderr, "[%s] fail to parse file '%s'\n", __func__, passFile);
-    	exit(EXIT_FAILURE);
-	}
-	fclose(filePtr);
-	
-	retValue = 0;
-	if (readNT) retValue |= INDEX_FLAG_NT;
-	if (readMF) retValue |= INDEX_FLAG_MF;
-
-	return retValue;
-}
-
 
 // Construct 6-bit codon from 3 ASCII characters
 unsigned char encodeCodon(char * passSequence, int passStrand) {
@@ -138,7 +104,7 @@ unsigned char encodeCodon(char * passSequence, int passStrand) {
 }
 
 // Give a nucleotide sequence and a CDS entry (containing alignment info), return the corresponding protein sequence
-int convertToAA(char * passSequence, struct CDS * passCDS, char ** retSequence, unsigned long * retSize) {
+int convertToAA(char * passSequence, CDS * passCDS, char ** retSequence, unsigned long * retSize) {
 	unsigned long nucIdx, aaIdx;
 	unsigned long seqLen, seqStart;
 	unsigned char currentCodon;
@@ -238,7 +204,7 @@ void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned l
 }
 
 // Filter history array for ORF selection parameters, return corresponding CDS array
-void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct CDS * * retCDS, unsigned long * retCount) {
+void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], CDS * * retCDS, unsigned long * retCount) {
 	unsigned long srcFrameIdx, srcHistoryIdx;
 	unsigned long srcStart, srcEnd, totalSize;
 	int relStart, validEntry;
@@ -247,7 +213,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct
 	totalSize = 0;
 	for (srcFrameIdx = 0 ; srcFrameIdx < 6 ; srcFrameIdx++) totalSize += passHistorySize[srcFrameIdx];
 
-	*retCDS = calloc(totalSize, sizeof(struct CDS));
+	*retCDS = calloc(totalSize, sizeof(CDS));
 	*retCount = 0;
 	relStart = -1;
 
@@ -285,7 +251,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], struct
 }
 
 // Scan nucleotide sequence for all recognized ORFs, return as CDS array
-int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, struct CDS * * retCDS, unsigned long * retCount) {
+int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, CDS * * retCDS, unsigned long * retCount) {
 	int frameIdx, addIdx, strandDir, relFrame;
 	long seqIdx, absIdx, lastStart;
 	long endSeqPos, endOrfPos;
@@ -362,7 +328,7 @@ int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * pa
 }
 
 // Iterate through GFF annotation file, return next available CDS entry
-int getNextCDS(FILE * passFile, struct CDS * retCDS, unsigned long * retLine) {
+int getNextCDS(FILE * passFile, CDS * retCDS, unsigned long * retLine) {
 	int fieldIdx, scanIdx;
 	int readCount;
 	char readBuffer[GFF_MAX_FIELD], field[9][GFF_MAX_FIELD];
@@ -402,8 +368,8 @@ int getNextCDS(FILE * passFile, struct CDS * retCDS, unsigned long * retLine) {
 }
 
 // Convert the given reference nucleotide FASTA and GFF file to a protein FASTA file (for all one/all frames)
-int writeIndexProtein(const char * passPrefix, const char * passProName, const char * passAnnName, int passMulti) {
-        struct CDS currentCDS;
+int writeIndexProtein(const char * passPrefix, const char * passProName, const char * passAnnName, IndexHeader passHeader) {
+        CDS currentCDS;
         gzFile inputSeqPtr;
         FILE * inputAnnPtr, * outputPtr;
         char * outputBuffer;
@@ -416,12 +382,13 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
         outputPtr = fopen(passProName, "w");
 
         if (inputAnnPtr == NULL) {
-        	fprintf(stderr, "[%s] fail to open file '%s' : %s\n", __func__, passAnnName, errno ? strerror(errno) : "Out of memory");
+        	logMessage(__func__, LOG_LEVEL_ERROR, "Failed to open file '%s' : %s\n", __func__, passAnnName, errno ? strerror(errno) : "Out of memory");
         	exit(EXIT_FAILURE);
         }
 
     	// Write index type header
-    	writeIndexHeader(outputPtr, 1, passMulti);
+        passHeader.nucleotide = 1;
+    	writeIndexHeader(outputPtr, passHeader);
 
         // Read in 1st sequence data
         seq = kseq_init(inputSeqPtr);
@@ -441,7 +408,7 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
 				currentCDS.endIdx++;
 				if (frameIdx == 2) currentCDS.strand *= -1;
 
-				if (!passMulti) break;
+				if (!passHeader.multiFrame) break;
 			}
         }
 
@@ -450,12 +417,12 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
         err_gzclose(inputSeqPtr);
         err_fclose(inputAnnPtr);
         err_fclose(outputPtr);
-	kseq_destroy(seq);
+        kseq_destroy(seq);
         return 0;
 }
 
-int writeIndexCodingProtein(const char * passPrefix, const char * passProName, int passMulti) {
-    struct CDS currentCDS;
+int writeIndexCodingProtein(const char * passPrefix, const char * passProName, IndexHeader passHeader) {
+    CDS currentCDS;
     gzFile  inputSeqPtr;
     FILE * outputPtr;
     char * outputBuffer;
@@ -467,7 +434,8 @@ int writeIndexCodingProtein(const char * passPrefix, const char * passProName, i
     outputPtr = fopen(passProName, "w");
 
 	// Write index type header
-	writeIndexHeader(outputPtr, 1, passMulti);
+    passHeader.nucleotide = 1;
+	writeIndexHeader(outputPtr, passHeader);
 
     // Iterate through each sequence
     seq = kseq_init(inputSeqPtr);
@@ -494,7 +462,7 @@ int writeIndexCodingProtein(const char * passPrefix, const char * passProName, i
 				fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, seq->name.s, (int) outputSize, outputBuffer);
 				free(outputBuffer);
 
-				if (!passMulti) break;
+				if (!passHeader.multiFrame) break;
             }
 
             currentLine++;
@@ -509,13 +477,14 @@ int writeIndexCodingProtein(const char * passPrefix, const char * passProName, i
     return 0;
 }
 
-int writeIndexDirectProtein(const char * passPrefix, const char * passProName) {
+int writeIndexDirectProtein(const char * passPrefix, const char * passProName, IndexHeader passHeader) {
 	FILE * outputPtr;
 
 	outputPtr = fopen(passProName, "w");
 
 	// Write index type header
-	writeIndexHeader(outputPtr, 0, 0);
+    passHeader.nucleotide = 0;
+	writeIndexHeader(outputPtr, passHeader);
 
     // Close file
     fflush(outputPtr);
@@ -527,7 +496,7 @@ int writeIndexDirectProtein(const char * passPrefix, const char * passProName) {
 // This is a function use for testing - to be removed in final code
 // Currently writes GC content to sequence header in 2nd position
 int writeIndexTestProtein(const char * passPrefix, const char * passProName) {
-    struct CDS currentCDS;
+    CDS currentCDS;
     gzFile  inputSeqPtr;
     FILE * outputPtr;
     char * outputBuffer;
@@ -580,16 +549,16 @@ int writeIndexTestProtein(const char * passPrefix, const char * passProName) {
 
 // Detects ORFs in the given nucleotide FASTA file and converts to a protein FASTA file
 int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt_t * passOptions) {
-	struct CDS * orfList;
+	CDS * orfList;
 	gzFile inputSeqPtr;
 	FILE * outputProPtr, * outputNTPtr;
  	char * outputProBuffer, * outputNTName;
 	kseq_t * seq;
-	unsigned long seqIdx, outputSize, orfCount, orfIdx;
+	unsigned long seqIdx, outputSize, orfCount, orfTotal, orfIdx;
 
 	// Check for incompatible combinations
-	if ((passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) && (passOptions->indexFlag & INDEX_FLAG_MF)) {
-		fprintf(stderr, "[paladin_align] Brute force ORF detection redundant to MF index, disabling...\n");
+	if ((passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) && passOptions->indexInfo.multiFrame) {
+		logMessage(__func__, LOG_LEVEL_WARNING, "Brute force ORF detection redundant to MF index, disabling...\n");
 		passOptions->flag &= ~ALIGN_FLAG_BRUTE_ORF;
 	}
 
@@ -605,7 +574,10 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 		free(outputNTName);
 	}
 
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Detecting open reading frames...\n");
+
 	// Iterate through each read
+	orfTotal = 0;
 	seqIdx = 0;
 	seq = kseq_init(inputSeqPtr);
 
@@ -629,6 +601,7 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 		}
 
 		free(orfList);
+		orfTotal += orfCount;
 		seqIdx++;
 	}
 
@@ -642,6 +615,9 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 		fflush(outputNTPtr);
 		err_fclose(outputNTPtr);
 	}
+
+	if (passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) orfTotal /= 6;
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Detected %d open reading frames in %d sequences\n", orfTotal, seqIdx);
 
 	return 0;
 }
