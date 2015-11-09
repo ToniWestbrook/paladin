@@ -248,11 +248,9 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 		queryString[0] = 0;
 		for (queryIdx = 0 ; (queryIdx < queryCount) && (entryIdx < passList->entryCount) ; entryIdx++) {
 			for (parseIdx = 0 ; parseIdx < strlen(passList->entries[entryIdx].id) ; parseIdx++) {
-				if (passList->entries[entryIdx].id[parseIdx] == '_') {
-					sprintf(queryString, "%s%s ", queryString, passList->entries[entryIdx].id);
-					queryIdx++;
-					break;
-				}
+				sprintf(queryString, "%s%s ", queryString, passList->entries[entryIdx].id);
+				queryIdx++;
+				break;
 			}
 		}
 
@@ -260,9 +258,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 		sprintf(queryString, "uploadQuery=%s&format=job&from=ACC+ID&to=ACC&landingPage=false", httpString);
 		curl_free(httpString);
 
-		if (bwa_verbose >= 3) {
-			logMessage(__func__, LOG_LEVEL_MESSAGE, "Submitted %d of %d entries to UniProt...\n", entryIdx, passList->entryCount);
-		}
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Submitted %d of %d entries to UniProt...\n", entryIdx, passList->entryCount);
 
 		// Restart a limited number of times if errors encountered
 		for (errorIdx = 0 ; errorIdx < UNIPROT_MAX_ERROR ; errorIdx++) {
@@ -455,8 +451,17 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 					sprintf(globalLists[*globalCount].entries[*currentIdx].gene, "%.*s", parseIdx, uniprotEntry);
 					globalLists[*globalCount].entries[*currentIdx].organism = malloc(strlen(uniprotEntry + parseIdx) + 1);
 					sprintf(globalLists[*globalCount].entries[*currentIdx].organism, "%s", uniprotEntry + parseIdx + 1);
+					parseIdx = -1;
 					break;
 				}
+			}
+
+			// If underscore missing, we may be dealing with clustered ID with deleted representative
+			if (parseIdx > -1) {
+				globalLists[*globalCount].entries[*currentIdx].gene = malloc(strlen(uniprotEntry) + 1);
+				sprintf(globalLists[*globalCount].entries[*currentIdx].gene, "%s", uniprotEntry);
+				globalLists[*globalCount].entries[*currentIdx].organism = malloc(8);
+				sprintf(globalLists[*globalCount].entries[*currentIdx].organism, "Unknown");
 			}
 
 			(*currentIdx)++;
@@ -523,9 +528,7 @@ void prepareUniprotLists(UniprotList * retLists, int passPrimary) {
 		maxEntries += globalLists[listIdx].entryCount;
 	}
 
-	if (bwa_verbose >= 3) {
-		logMessage(__func__, LOG_LEVEL_MESSAGE, "Aggregating %d entries for UniProt report\n", maxEntries);
-	}
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Aggregating %d entries for UniProt report\n", maxEntries);
 
 	// Stop processing if no entries, but ensure a list exists for easier post-processing
 	if (maxEntries == 0) {
