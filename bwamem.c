@@ -1303,7 +1303,7 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 	// Prepare Uniprot data (fully if requested)
 	addUniprotList(&w, n, opt->outputStream != stdout);
 
-	logMessage(__func__, LOG_LEVEL_MESSAGE, "Processed %d ORF sequences in %.3f CPU sec, %.3f real sec\n", n, cputime() - ctime, realtime() - rtime);
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Processed %d protein sequences in %.3f CPU sec, %.3f real sec\n", n, cputime() - ctime, realtime() - rtime);
 
 	for (i = 0 ; i < n ; i++) {
 		free(w.regs[i].a);

@@ -36,7 +36,7 @@ static void *process(void *shared, int step, void *_data) {
 			}
 		for (i = 0; i < ret->n_seqs; ++i) size += ret->seqs[i].l_seq;
 
-		logMessage(__func__, LOG_LEVEL_MESSAGE, "Read %d ORF sequences (%ld bp)...\n", ret->n_seqs, (long)size);
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Read %d protein sequences (%ld AA)...\n", ret->n_seqs, (long)size);
 
 		return ret;
 	} else if (step == 1) {

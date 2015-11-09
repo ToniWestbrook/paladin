@@ -617,7 +617,7 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 	}
 
 	if (passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) orfTotal /= 6;
-	logMessage(__func__, LOG_LEVEL_MESSAGE, "Detected %d open reading frames in %d sequences\n", orfTotal, seqIdx);
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Detected and translated %d open reading frames in %d sequences\n", orfTotal, seqIdx);
 
 	return 0;
 }
