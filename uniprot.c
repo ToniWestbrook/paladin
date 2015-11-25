@@ -76,17 +76,17 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 	// Render requested report
 	switch (passType) {
 		case OUTPUT_TYPE_UNIPROT_SIMPLE:
-			fprintf(passStream, "Count\tCount %%\tUniProtKB\n");
+			fprintf(passStream, "Count\tAbundance\tUniProtKB\n");
 			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
-			fprintf(passStream, "\n\nCount\tCount %%\tGene\n");
+			fprintf(passStream, "\n\nCount\tAbundance\tGene\n");
 			renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES, passStream);
-			fprintf(passStream, "\n\nCount\tCount %%\tOrganism\n");
+			fprintf(passStream, "\n\nCount\tAbundance\tOrganism\n");
 			renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM, passStream);
 
 			break;
 
 		case OUTPUT_TYPE_UNIPROT_FULL:
-			fprintf(passStream, "Count\tCount %%\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\n");
+			fprintf(passStream, "Count\tAbundance\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\n");
 			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
 			freeCURLBuffer(&tempBuffer);
 
