@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <time.h>
 #include <zlib.h>
 #include "bwtindex.h"
@@ -11,6 +12,7 @@
 #include "bntseq.h"
 #include "utils.h"
 #include "uniprot.h"
+#include "main.h"
 
 #ifdef _DIVBWT
     #include "divsufsort.h"
@@ -19,6 +21,68 @@
 #ifdef USE_MALLOC_WRAPPERS
     #include "malloc_wrap.h"
 #endif
+
+// Write header for index pro file
+void writeIndexHeader(FILE * passFilePtr, IndexHeader passHeader) {
+	fprintf(passFilePtr, ">VER=%s:NT=%d:MF=%d:RT=%d\n", PACKAGE_VERSION,
+														passHeader.nucleotide,
+														passHeader.multiFrame,
+														passHeader.referenceType);
+}
+
+// Get header info from index pro file
+IndexHeader getIndexHeader(char * passFile) {
+	FILE * filePtr;
+	IndexHeader retHeader;
+
+	// Open file and read header information
+	filePtr = fopen(passFile, "r");
+
+    if (filePtr == NULL) {
+    	logMessage(__func__, LOG_LEVEL_ERROR, "Failed to open file '%s' : %s\n", passFile, errno ? strerror(errno) : "Out of memory");
+    	exit(EXIT_FAILURE);
+    }
+
+	if (fscanf(filePtr, ">VER=%d.%d.%d:NT=%d:MF=%d:RT=%d", &(retHeader.version[0]),
+														   &(retHeader.version[1]),
+														   &(retHeader.version[2]),
+														   &(retHeader.nucleotide),
+														   &(retHeader.multiFrame),
+														   &(retHeader.referenceType)) != 6) {
+		logMessage(__func__, LOG_LEVEL_ERROR, "Failed to parse file '%s'\n", passFile);
+    	exit(EXIT_FAILURE);
+	}
+	fclose(filePtr);
+
+	return retHeader;
+}
+
+// Calculate if specified header version is compatible with software
+int getIndexCompatible(IndexHeader passHeader) {
+	// Check if index newer than current version
+	while (1) {
+		if (passHeader.version[0] < PACKAGE_VERSION_MAJOR) break;
+		if (passHeader.version[0] > PACKAGE_VERSION_MAJOR) return INDEX_COMPATBILITY_FUTURE;
+		if (passHeader.version[1] < PACKAGE_VERSION_MINOR) break;
+		if (passHeader.version[1] > PACKAGE_VERSION_MINOR) return INDEX_COMPATBILITY_FUTURE;
+		if (passHeader.version[2] < PACKAGE_VERSION_REV) break;
+		if (passHeader.version[2] > PACKAGE_VERSION_REV) return INDEX_COMPATBILITY_FUTURE;
+		break;
+	}
+
+	// Check if reference new enough to be supported (1.1.0 for current version)
+	while (1) {
+		if (passHeader.version[0] < 1) return INDEX_COMPATIBILITY_NONE;
+		if (passHeader.version[0] > 1) break;
+		if (passHeader.version[1] < 1) return INDEX_COMPATIBILITY_NONE;
+		if (passHeader.version[1] > 1) break;
+		if (passHeader.version[2] < 0) return INDEX_COMPATIBILITY_NONE;
+		if (passHeader.version[2] > 0) break;
+		break;
+	}
+
+	return INDEX_COMPATIBLITY_FULL;
+}
 
 // Pack the given byte value into the BWT (pre-interleaved) at the specified index (4 per 32-bit word)
 void packValue(bwt_t * passBWT, int64_t passSeqIdx, bwtint_t passValue) {
@@ -109,7 +173,7 @@ int command_pac2bwt(int argc, char *argv[]) {
 		}
 	}
 	if (optind + 2 > argc) {
-		fprintf(stderr, "Usage: bwa pac2bwt <in.pac> <out.bwt>\n");
+		fprintf(stderr, "Usage: paladin pac2bwt <in.pac> <out.bwt>\n");
 		return 1;
 	}
 	bwt = bwt_pac2bwt(argv[optind]);
@@ -159,7 +223,7 @@ void bwt_bwtupdate_core(bwt_t *bwt) {
 int command_bwtupdate(int argc, char *argv[]) {
 	bwt_t *bwt;
 	if (argc < 2) {
-		fprintf(stderr, "Usage: bwa bwtupdate <the.bwt>\n");
+		fprintf(stderr, "Usage: paladin bwtupdate <the.bwt>\n");
 		return 1;
 	}
 	bwt = bwt_restore_bwt(argv[1]);
@@ -180,7 +244,7 @@ int command_bwt2sa(int argc, char *argv[]) {
 		}
 	}
 	if (optind + 2 > argc) {
-		fprintf(stderr, "Usage: bwa bwt2sa [-i %d] <in.bwt> <out.sa>\n", sa_intv);
+		fprintf(stderr, "Usage: paladin bwt2sa [-i %d] <in.bwt> <out.sa>\n", sa_intv);
 		return 1;
 	}
 	bwt = bwt_restore_bwt(argv[optind]);
@@ -196,24 +260,30 @@ int command_index(int argc, char *argv[]) {
 	char * prefix, * proName, * pacName, * bwtName, * saName;
 	gzFile fp;
 	char c;
-	int indexType, multiFrame, valid;
+	int indexType, valid;
+	IndexHeader indexHeader;
 	clock_t t;
 
 	// Parse arguments
-	valid = 0;
+	valid = 1;
 	indexType = -1;
-	multiFrame = 0;
+	memset(&indexHeader, 0, sizeof(indexHeader));
 
-	while ((c = getopt(argc, argv, "fr:")) >= 0) {
-		if (c == 'f') multiFrame = 1;
+	while ((c = getopt(argc, argv, "fr:p:")) >= 0) {
+		if (c == 'f') indexHeader.multiFrame = 1;
+		if (c == 'p') indexHeader.referenceType = atoi(optarg);
 		if (c == 'r') indexType = atoi(optarg);
+		if (c == '?') valid = 0;
 	}
 
 	// Check for valid combinations
-	if ((indexType == 0) && (argc - optind == 2)) valid = 1;
-	if ((indexType == 1) && (argc - optind == 1)) valid = 1;
-	if ((indexType == 2) && (argc - optind == 1)) valid = 1;
-	if ((indexType == 3) && (argc - optind == 1)) valid = 1;
+	if (valid) {
+		valid = 0;
+		if ((indexType == 1) && (argc - optind == 2)) valid = 1;
+		if ((indexType == 2) && (argc - optind == 1)) valid = 1;
+		if ((indexType == 3) && (argc - optind == 1)) valid = 1;
+		if ((indexType == 4) && (argc - optind == 1)) valid = 1;
+	}
 
 	if (!valid) {
 		fprintf(stderr, "\n");
@@ -221,13 +291,13 @@ int command_index(int argc, char *argv[]) {
 		fprintf(stderr, "Options:\n\n");
 		fprintf(stderr, "    -f     Enable indexing all frames in nucleotide references\n");
 		fprintf(stderr, "    -r<#>  Reference type:\n");
-		fprintf(stderr, "              0: Reference contains nucleotide sequences (requires corresponding .gff annotation)\n");
-		fprintf(stderr, "              1: Reference contains nucleotide sequences (coding only, eg curated transcriptome)\n");
-		fprintf(stderr, "              2: Reference contains protein sequences (UniProt or other source)\n");
-		fprintf(stderr, "              3: Development tests\n\n");
+		fprintf(stderr, "              1: Reference contains nucleotide sequences (requires corresponding .gff annotation)\n");
+		fprintf(stderr, "              2: Reference contains nucleotide sequences (coding only, eg curated transcriptome)\n");
+		fprintf(stderr, "              3: Reference contains protein sequences (UniProt or other source)\n");
+		fprintf(stderr, "              4: Development tests\n\n");
 		fprintf(stderr, "Examples:\n\n");
-		fprintf(stderr, "   paladin index -r0 reference.fasta reference.gff\n");
-		fprintf(stderr, "   paladin index -r2 uniprot_sprot.fasta.gz\n");
+		fprintf(stderr, "   paladin index -r1 reference.fasta reference.gff\n");
+		fprintf(stderr, "   paladin index -r3 uniprot_sprot.fasta.gz\n");
 		fprintf(stderr, "\n");
 		return 1;
 	}    
@@ -247,68 +317,68 @@ int command_index(int argc, char *argv[]) {
 
 	// Create Protein Sequence
 	t = clock();
-	fprintf(stderr, "[paladin_index] Translating protein sequence... ");
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Translating protein sequence...");
 
 	switch (indexType) {
-		case 0:
-			// Nucleotide sequence and annotation
-			writeIndexProtein(prefix, proName, argv[optind+1], multiFrame); break;
 		case 1:
-			// Nucleotide sequence, coding only
-			writeIndexCodingProtein(prefix, proName, multiFrame); break;
+			// Nucleotide sequence and annotation
+			writeIndexProtein(prefix, proName, argv[optind+1], indexHeader); break;
 		case 2:
+			// Nucleotide sequence, coding only
+			writeIndexCodingProtein(prefix, proName, indexHeader); break;
+		case 3:
 			// Protein sequence
-			writeIndexDirectProtein(prefix, proName);
+			writeIndexDirectProtein(prefix, proName, indexHeader);
 			sprintf(proName, "%s", argv[optind]);
 			break;
-		case 3:
+		case 4:
 			// Testing
 			writeIndexTestProtein(prefix, proName); break;
 	}
 
-	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	logMessageRaw(LOG_LEVEL_MESSAGE, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	// Pack FASTA
 	fp = xzopen(proName, "r");
 	t = clock();
-	fprintf(stderr, "[paladin_index] Packing protein sequence... ");
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Packing protein sequence... ");
 	bns_fasta2bntseq(fp, prefix, 0);
-	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	logMessageRaw(LOG_LEVEL_MESSAGE, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	err_gzclose(fp);
 
 	// Construct BWT
 	t = clock();
-	fprintf(stderr, "[paladin_index] Constructing BWT for the packed sequence... ");
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Constructing BWT for the packed sequence... ");
 	bwt = bwt_pac2bwt(pacName);
 	bwt_dump_bwt(bwtName, bwt);
 	bwt_destroy(bwt);
-	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	logMessageRaw(LOG_LEVEL_MESSAGE, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	// Update BWT
 	t = clock();
-	fprintf(stderr, "[paladin_index] Update BWT... ");
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Updating BWT... ");
 	bwt = bwt_restore_bwt(bwtName);
 	bwt_bwtupdate_core(bwt);
 	bwt_dump_bwt(bwtName, bwt);
 	bwt_destroy(bwt);
-	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	logMessageRaw(LOG_LEVEL_MESSAGE, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	// Pack Forward-Only FASTA
 	fp = xzopen(proName, "r");
 	t = clock();
-	fprintf(stderr, "[paladin_index] Pack forward-only protein sequence... ");
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Packing forward-only protein squence... ");
 	bns_fasta2bntseq(fp, prefix, 1);
-	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	logMessageRaw(LOG_LEVEL_MESSAGE, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	err_gzclose(fp);
 
 	// Construct Suffix Array from FM-Index and Occurrences
 	t = clock();
-	fprintf(stderr, "[paladin_index] Construct SA from BWT and Occ... ");
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Constructing suffix array... ");
 	bwt = bwt_restore_bwt(bwtName);
 	bwt_cal_sa(bwt, 32);
 	bwt_dump_sa(saName, bwt);
 	bwt_destroy(bwt);
-	fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	logMessageRaw(LOG_LEVEL_MESSAGE, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 
 	free(prefix);
 	free(proName);
@@ -322,39 +392,62 @@ int command_index(int argc, char *argv[]) {
 // 'prepare' command entry point.  Download requested reference and index
 int command_prepare(int argc, char *argv[]) {
 	char c;
+	char refArg[] = "-p0";
 	const char * refName;
 	int refType, valid;
 
 	// Fixed passthrough arguments
-	const char * passArgs[] = {"index", "-r2", ""};
+	const char * passArgs[] = {"index", "-r3", refArg, NULL};
 
 
 	// Parse arguments
-	valid = 0;
+	valid = 1;
 	refType = -1;
+	refName = NULL;
 
-	while ((c = getopt(argc, argv, "r:")) >= 0) {
+	while ((c = getopt(argc, argv, "r:f:")) >= 0) {
 		if (c == 'r') refType = atoi(optarg);
+		if (c == 'f') refName = optarg;
+		if (c == '?') valid = 0;
 	}
 
-	if (refType == 0) valid = 1;
+	if ((refType < UNIPROT_REFERENCE_SWISSPROT) || (refType > UNIPROT_REFERENCE_UNIREF90)) valid = 0;
 
 	if (!valid) {
 			fprintf(stderr, "\n");
 			fprintf(stderr, "Usage: paladin prepare [options]\n\n");
 			fprintf(stderr, "Options:\n\n");
-			fprintf(stderr, "    -r<#>  Reference Database:\n");
-			fprintf(stderr, "              0: UniProtKB Reviewed (Swiss-Prot)\n");
-			//fprintf(stderr, "              1: UniProtKB Unreviewed (TrEMBL)\n");
+			fprintf(stderr, "    -r <#>         Reference Database:\n");
+			fprintf(stderr, "                     1: UniProtKB Reviewed (Swiss-Prot)\n");
+			fprintf(stderr, "                     2: UniProtKB Clustered 90%% (UniRef90)\n\n");
+			fprintf(stderr, "    -f <ref.fasta> Skip download, use local copy of reference database (may be indexed)\n\n");
+			fprintf(stderr, "Examples:\n\n");
+			fprintf(stderr, "   paladin prepare -r2\n");
+			fprintf(stderr, "   paladin prepare -r1 -f uniprot_sprot.fasta.gz\n");
+
 			fprintf(stderr, "\n");
 			return 1;
 	}
 
-	if ((refName = downloadUniprotReference(refType))[0] == 0) {
-		return 1;
+
+	// We can generalize this in the future to include other reference types
+	if (!refName) {
+		if ((refName = downloadUniprotReference(refType))[0] == 0) {
+			return 1;
+		}
 	}
 
-	optind = 1;
-	passArgs[2] = refName;
-	return command_index(3, (char * *) passArgs);
+	// Clean the UniProt reference, fixing up headers.  Then index if necessary
+	if (cleanUniprotReference(refType, refName) == 0) {
+		// Pass reference type to indexing step
+		optind = 1;
+		((char *)passArgs[2])[2] = '0' + refType;
+		passArgs[3] = refName;
+
+		// Index
+		return command_index(4, (char * *) passArgs);
+
+	}
+
+	return 0;
 }

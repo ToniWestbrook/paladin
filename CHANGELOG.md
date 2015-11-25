@@ -1,5 +1,27 @@
 # Change Log
 
+## [1.1.0] - 2015-11-08
+### Added
+- Option for preparing a pre-downloaded and/or pre-indexed reference.  This will skip the download and clean any applicable portion of the reference/index
+- Index version compatibility system.  Will ensure at alignment time the index is compatible with current software version
+- Additional runtime status reporting, especially in areas where processing can take a significant amount of time (ORF detection, index preparation, index loading, etc)
+
+### Changed
+- UniRef50 option to UniRef90 (in accordance with empirical testing)
+- A few minor description changes
+
+## [1.0.3] - 2015-09-30
+### Added
+- UniRef50 as one of the preparation/download options
+
+## [1.0.2] - 2015-09-29
+### Added
+- UniProt reporting now properly parses header styles of both SwissProt/TrEMBL and UniRef
+
+## [1.0.1] - 2015-09-28
+### Changed
+- Default alignment threshold score from 30 to 20 (in accordance with empirical testing)
+
 ## [1.0.0] - 2015-08-11
 ### Added
 - Minimum ORF length filtering

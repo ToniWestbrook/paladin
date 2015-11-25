@@ -1,28 +1,39 @@
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <curl/curl.h>
+#include <unistd.h>
+#include <zlib.h>
 #include "uniprot.h"
+#include "main.h"
 #include "protein.h"
+#include "utils.h"
 
 UniprotList * uniprotPriEntryLists = 0;
 UniprotList * uniprotSecEntryLists = 0;
 int uniprotPriListCount = 0;
 int uniprotSecListCount = 0;
 
-const char * downloadNames[] = {"uniprot_sprot.fasta.gz", 
-			  "uniprot_trembl.fasta.gz"};
-const char * downloadURLs[] = {"ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
-			 "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz"};
+// For code clarity, 0 position reserved for non-Uniprot reference
+const char * downloadNames[] = {"",
+								"uniprot_sprot.fasta.gz",
+								"uniref90.fasta.gz"};
+const char * downloadURLs[] = {"",
+							   "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+							   "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz"};
 
+// Select global list by index (primary/secondary)
 UniprotList * getGlobalLists(int passPrimary) {
 	if (passPrimary) return uniprotPriEntryLists;
 	else return uniprotSecEntryLists;
 }
 
+// Get global list count by index (primary/secondary)
 int * getGlobalCount(int passPrimary) {
 	if (passPrimary) return &uniprotPriListCount;
 	else return &uniprotSecListCount;
 }
+
 
 void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists, CURLBuffer * passBuffer) {
 	UniprotList * globalLists;
@@ -85,6 +96,111 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 	cleanUniprotLists(uniprotLists, passPrimary);
 }
 
+// Some UniProt references need to be reformatted for compatibility with reporting
+int cleanUniprotReference(int passReference, const char * passBase) {
+	char * tempName;
+	int indexed;
+	IndexHeader newHeader;
+	FILE * proHandle;
+
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Cleaning UniProt reference...\n");
+
+	// Check if reference has already been indexed
+	tempName = malloc(strlen(passBase) + 5);
+	sprintf(tempName, "%s.ann", passBase);
+	indexed = (access(tempName, F_OK) != -1);
+
+	// Begin reference-specific preparation
+	switch (passReference) {
+		case UNIPROT_REFERENCE_UNIREF90:
+			cleanUniprotReferenceUniref(passBase, 0);
+			if (indexed) cleanUniprotReferenceUniref(tempName, 1);
+	}
+
+	// If indexed, also fix protein header
+	if (indexed) {
+		sprintf(tempName, "%s.pro", passBase);
+		proHandle = fopen(tempName, "w");
+
+		newHeader.multiFrame = 1;
+		newHeader.nucleotide = 0;
+		newHeader.referenceType = passReference;
+		writeIndexHeader(proHandle, newHeader);
+
+		fclose(proHandle);
+	}
+
+	free(tempName);
+
+	return indexed;
+}
+
+// Rewrite headers with representative organism as UniProtKB ID for UniRef references.
+void cleanUniprotReferenceUniref(const char * passName, int passANN) {
+	gzFile srcHandle, dstHandle;
+	FILE * dstANNHandle;
+	int searchIdx, searchIdx2, lineIdx;
+	char * newName;
+	char srcBuffer[4096], dstBuffer[4096];
+	char target[] = "RepID=";
+
+	// Prepare and open reference and temporary destination
+	newName = malloc(strlen(passName) + 5);
+	sprintf(newName, "%s.tmp", passName);
+
+	srcHandle = xzopen(passName, "r");
+	if (!passANN) dstHandle = xzopen(newName, "w");
+	else dstANNHandle = fopen(newName, "w");
+	lineIdx = 0;
+
+	while (gzgets(srcHandle, srcBuffer, 4096)) {
+		// For FASTA files, must start with ">".  For ANN, must be an odd line
+		if (((passANN == 0) && (srcBuffer[0] == '>')) ||
+			((passANN == 1) && (lineIdx % 2 == 1))) {
+			// Alter header - strip CRLF
+			for (searchIdx = strlen(srcBuffer) - 1 ; searchIdx >= 0 ; searchIdx--) {
+				if ((srcBuffer[searchIdx] == 0x0A) || (srcBuffer[searchIdx] == 0x0D)) {
+					srcBuffer[searchIdx] = 0x00;
+				}
+				else break;
+			}
+
+			// Find RepID
+			for (searchIdx = 0 ; searchIdx < strlen(srcBuffer) - strlen(target) ; searchIdx++) {
+				for (searchIdx2 = 0 ; searchIdx2 < strlen(target) ; searchIdx2++ ) {
+					if (srcBuffer[searchIdx + searchIdx2] != target[searchIdx2]) break;
+				}
+
+				if (searchIdx2 == strlen(target)) {
+					// RepID found, write new header
+					if (!passANN) sprintf(dstBuffer, ">%s %s\n", srcBuffer + searchIdx + strlen(target), srcBuffer + 1);
+					else sprintf(dstBuffer, "0 %s %s\n", srcBuffer + searchIdx + strlen(target), srcBuffer + 2);
+					break;
+				}
+			}
+
+			if (!passANN) gzwrite(dstHandle, dstBuffer, strlen(dstBuffer));
+			else fwrite(dstBuffer, 1, strlen(dstBuffer), dstANNHandle);
+		}
+		else {
+			// Copy sequence
+			if (!passANN) gzwrite(dstHandle, srcBuffer, strlen(srcBuffer));
+			else fwrite(srcBuffer, 1, strlen(srcBuffer), dstANNHandle);
+		}
+
+		lineIdx++;
+	}
+
+	err_gzclose(srcHandle);
+	if (!passANN) err_gzclose(dstHandle);
+	else fclose(dstANNHandle);
+
+	// Delete original file and replace with new one
+	unlink(passName);
+	rename(newName, passName);
+}
+
+// Download the requested UniProt reference (sprot/trembl/uniref90)
 const char * downloadUniprotReference(int passReference) {
 	CURL * curlHandle;
 	CURLcode curlResult;
@@ -98,16 +214,15 @@ const char * downloadUniprotReference(int passReference) {
 	curl_easy_setopt(curlHandle, CURLOPT_URL, downloadURLs[passReference]);
 	curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, fileHandle) ;
 
-	fprintf(stderr, "[M::%s] Downloading %s...\n", __func__, downloadURLs[passReference]);
-
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Downloading %s...\n", downloadURLs[passReference]);
 	curlResult = curl_easy_perform(curlHandle);
 
 	if (curlResult != CURLE_OK) {
-		fprintf(stderr, "ERROR: %s\n", curl_easy_strerror(curlResult));
+		logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
 		unlink(downloadNames[passReference]);
 		retFile = "";
 	}
-		
+
 	curl_easy_cleanup(curlHandle);
 	fclose(fileHandle);
 
@@ -133,11 +248,9 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 		queryString[0] = 0;
 		for (queryIdx = 0 ; (queryIdx < queryCount) && (entryIdx < passList->entryCount) ; entryIdx++) {
 			for (parseIdx = 0 ; parseIdx < strlen(passList->entries[entryIdx].id) ; parseIdx++) {
-				if (passList->entries[entryIdx].id[parseIdx] == '_') {
-					sprintf(queryString, "%s%s ", queryString, passList->entries[entryIdx].id);
-					queryIdx++;
-					break;
-				}
+				sprintf(queryString, "%s%s ", queryString, passList->entries[entryIdx].id);
+				queryIdx++;
+				break;
 			}
 		}
 
@@ -145,9 +258,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 		sprintf(queryString, "uploadQuery=%s&format=job&from=ACC+ID&to=ACC&landingPage=false", httpString);
 		curl_free(httpString);
 
-		if (bwa_verbose >= 3) {
-			fprintf(stderr, "[M::%s] Submitted %d of %d entries to UniProt...\n", __func__, entryIdx, passList->entryCount);
-		}
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Submitted %d of %d entries to UniProt...\n", entryIdx, passList->entryCount);
 
 		// Restart a limited number of times if errors encountered
 		for (errorIdx = 0 ; errorIdx < UNIPROT_MAX_ERROR ; errorIdx++) {
@@ -162,7 +273,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 			curlResult = curl_easy_perform(curlHandle);
 
 			if (curlResult != CURLE_OK) {
-				fprintf(stderr, "ERROR: %s\n", curl_easy_strerror(curlResult));
+				logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
 				continue;
 			}
 
@@ -181,7 +292,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 			}
 
 			if (curlResult != CURLE_OK) {
-				fprintf(stderr, "ERROR: %s\n", curl_easy_strerror(curlResult));
+				logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
 				continue;
 			}
 
@@ -193,7 +304,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 			curlResult = curl_easy_perform(curlHandle);
 
 			if (curlResult != CURLE_OK) {
-				fprintf(stderr, "ERROR: %s\n", curl_easy_strerror(curlResult));
+				logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
 				continue;
 			}
 
@@ -249,10 +360,10 @@ void renderNumberAligned(const mem_opt_t * passOptions) {
 	}
 
 	if (alignTotal == 0) {
-		fprintf(stderr, "[M::%s] No detected ORFs, no alignment performed\n", __func__);
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "No detected ORF sequences, no alignment performed\n");
 	}
 	else {
-		fprintf(stderr, "[M::%s] Aligned %d out of %d total detected ORFs (%.2f%%)\n", __func__, successTotal, alignTotal, (float) successTotal / (float) alignTotal * 100);
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Aligned %d out of %d total detected ORF sequences (%.2f%%)\n", successTotal, alignTotal, (float) successTotal / (float) alignTotal * 100);
 	}
 }
 
@@ -313,24 +424,21 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 			uniprotEntry = passWorker->bns->anns[refID].name;
 
 			// Strip sequence and frame info for nucleotide references
-			if (passWorker->opt->indexFlag & INDEX_FLAG_NT)
+			if (passWorker->opt->indexInfo.nucleotide)
 			for (parseIdx = 2 ; (parseIdx > 0) && (*uniprotEntry != 0) ; uniprotEntry++) {
 				if (*uniprotEntry == ':') parseIdx--;
 			}
 
-			// Strip initial IDs
-			for (parseIdx = 2 ; (parseIdx > 0) && (*uniprotEntry != 0) ; uniprotEntry++) {
-				if (*uniprotEntry == '|') parseIdx--;
-			}
-
-			// Strip description
-			for (parseIdx = 0 ; uniprotEntry[parseIdx] != 0 ; parseIdx++) {
-				if (uniprotEntry[parseIdx] == ' ') {
-					uniprotEntry[parseIdx] = 0;
-					break;
+			// Strip initial IDs (if present) and description
+			for (parseIdx = 0 ; (uniprotEntry[parseIdx] != 0) && (uniprotEntry[parseIdx] != ' ') ; parseIdx++) {
+				if (uniprotEntry[parseIdx] == '|') {
+					uniprotEntry += parseIdx + 1;
+					parseIdx = 0;
 				}
 			}
-
+		
+			uniprotEntry[parseIdx] = 0;	
+			
 			// Full ID
 			globalLists[*globalCount].entries[*currentIdx].id = malloc(strlen(uniprotEntry) + 1);
 			globalLists[*globalCount].entries[*currentIdx].numOccurrence = 1;
@@ -343,8 +451,17 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 					sprintf(globalLists[*globalCount].entries[*currentIdx].gene, "%.*s", parseIdx, uniprotEntry);
 					globalLists[*globalCount].entries[*currentIdx].organism = malloc(strlen(uniprotEntry + parseIdx) + 1);
 					sprintf(globalLists[*globalCount].entries[*currentIdx].organism, "%s", uniprotEntry + parseIdx + 1);
+					parseIdx = -1;
 					break;
 				}
+			}
+
+			// If underscore missing, we may be dealing with clustered ID with deleted representative
+			if (parseIdx > -1) {
+				globalLists[*globalCount].entries[*currentIdx].gene = malloc(strlen(uniprotEntry) + 1);
+				sprintf(globalLists[*globalCount].entries[*currentIdx].gene, "%s", uniprotEntry);
+				globalLists[*globalCount].entries[*currentIdx].organism = malloc(8);
+				sprintf(globalLists[*globalCount].entries[*currentIdx].organism, "Unknown");
 			}
 
 			(*currentIdx)++;
@@ -411,9 +528,7 @@ void prepareUniprotLists(UniprotList * retLists, int passPrimary) {
 		maxEntries += globalLists[listIdx].entryCount;
 	}
 
-	if (bwa_verbose >= 3) {
-		fprintf(stderr, "[M::%s] Aggregating %d entries for UniProt report\n", __func__, maxEntries);
-	}
+	logMessage(__func__, LOG_LEVEL_MESSAGE, "Aggregating %d entries for UniProt report\n", maxEntries);
 
 	// Stop processing if no entries, but ensure a list exists for easier post-processing
 	if (maxEntries == 0) {

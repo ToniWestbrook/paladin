@@ -241,7 +241,7 @@ bwt_t *index_load_bwt(const char *hint)
 	bwt_t *bwt;
 	prefix = index_infer_prefix(hint);
 	if (prefix == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __func__);
+		logMessage(__func__, LOG_LEVEL_ERROR, "Failed to locate the index files\n");
 		return 0;
 	}
 	tmp = calloc(strlen(prefix) + 5, 1);
@@ -261,7 +261,7 @@ bwaidx_t *index_load_from_disk(const char *hint, int which)
 	prefix = index_infer_prefix(hint);
 
 	if (prefix == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] fail to locate the index files\n", __func__);
+		logMessage(__func__, LOG_LEVEL_ERROR, "Failed to locate the index files\n");
 		return 0;
 	}
 
@@ -275,8 +275,9 @@ bwaidx_t *index_load_from_disk(const char *hint, int which)
 		idx->bns = bns_restore(hint);
 		for (i = c = 0; i < idx->bns->n_seqs; ++i)
 			if (idx->bns->anns[i].is_alt) ++c;
-		if (bwa_verbose >= 3)
-			fprintf(stderr, "[M::%s] read %d ALT contigs\n", __func__, c);
+
+		logMessage(__func__, LOG_LEVEL_MESSAGE, "Read %d ALT contigs\n", c);
+
 		if (which & BWA_IDX_PAC) {
 			idx->pac = calloc(idx->bns->l_pac+1, 1);
 			err_fread_noeof(idx->pac, 1, idx->bns->l_pac+1, idx->bns->fp_pac); // concatenated 2-bit encoded sequence
@@ -419,19 +420,19 @@ char *bwa_set_rg(const char *s)
 	char *p, *q, *r, *rg_line = 0;
 	memset(bwa_rg_id, 0, 256);
 	if (strstr(s, "@RG") != s) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] the read group line is not started with @RG\n", __func__);
+		logMessage(__func__, LOG_LEVEL_ERROR, "The read group line does not start with @RG\n");
 		goto err_set_rg;
 	}
 	rg_line = strdup(s);
 	bwa_escape(rg_line);
 	if ((p = strstr(rg_line, "\tID:")) == 0) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] no ID at the read group line\n", __func__);
+		logMessage(__func__, LOG_LEVEL_ERROR, "No ID at the read group line\n");
 		goto err_set_rg;
 	}
 	p += 4;
 	for (q = p; *q && *q != '\t' && *q != '\n'; ++q);
 	if (q - p + 1 > 256) {
-		if (bwa_verbose >= 1) fprintf(stderr, "[E::%s] @RG:ID is longer than 255 characters\n", __func__);
+		logMessage(__func__, LOG_LEVEL_ERROR, "@RG:ID is longer than 255 characters\n");
 		goto err_set_rg;
 	}
 	for (q = p, r = bwa_rg_id; *q && *q != '\t' && *q != '\n'; ++q)

@@ -30,12 +30,12 @@ SAMPLE COMMANDS
 
 Download and prepare UniProt index files.
 ```
-paladin prepare -r0 
+paladin prepare -r1 
 ```
 
 Index UniProt (or another protein) fasta, if not using the automated `prepare` command
 ```
-paladin index -f -r2 uniprot_sprot.fasta.gz
+paladin index -r3 uniprot_sprot.fasta.gz
 ```
 Align a set of reads using 4 theads. Send the full UniProt report to paladin_uniprot.tsv.
 ```
@@ -53,7 +53,7 @@ If you're intersted in trying this out on a smallish test file, try downloading 
 #install PALADIN as per above
 
 curl -O ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR117/002/SRR1177122/SRR1177122.fastq.gz
-paladin prepare -r0 #unless already done
+paladin prepare -r1 #unless already done
 paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 
 #look at report file, SAM, etc.

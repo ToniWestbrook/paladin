@@ -23,7 +23,6 @@
    SOFTWARE.
 */
 
-/* Contact: Heng Li <lh3@sanger.ac.uk> */
 #define FSYNC_ON_FLUSH
 
 #include <stdio.h>
@@ -40,14 +39,58 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include "utils.h"
-
 #include "ksort.h"
+#include "bwa.h"
+
 #define pair64_lt(a, b) ((a).x < (b).x || ((a).x == (b).x && (a).y < (b).y))
 KSORT_INIT(128, pair64_t, pair64_lt)
 KSORT_INIT(64,  uint64_t, ks_lt_generic)
 
 #include "kseq.h"
 KSEQ_INIT2(, gzFile, err_gzread)
+
+/*************
+ * Reporting *
+ *************/
+
+void logMessage(const char * passFunction, int passLevel, char * passFormat, ...) {
+	va_list argList;
+	char message[2048];
+	char prefix;
+
+	// Exit if lesser verbosity requested
+	if (passLevel > bwa_verbose) return;
+
+	// Prepare message
+	va_start(argList, passFormat);
+	vsnprintf(message, 2048, passFormat, argList);
+	va_end(argList);
+
+	switch (passLevel) {
+		case LOG_LEVEL_ERROR: prefix = 'E'; break;
+		case LOG_LEVEL_WARNING: prefix = 'W'; break;
+		case LOG_LEVEL_MESSAGE: prefix = 'M'; break;
+		case LOG_LEVEL_DEBUG: prefix = 'D'; break;
+		default: prefix = 'U'; break;
+	}
+
+	fprintf(stderr, "[%c::%s] %s", prefix, passFunction, message);
+}
+
+void logMessageRaw(int passLevel, char * passFormat, ...) {
+	va_list argList;
+	char message[2048];
+
+	// Exit if lesser verbosity requested
+	if (passLevel > bwa_verbose) return;
+
+	// Prepare message
+	va_start(argList, passFormat);
+	vsnprintf(message, 2048, passFormat, argList);
+	va_end(argList);
+
+	fprintf(stderr, "%s", message);
+}
 
 /********************
  * System utilities *

@@ -14,6 +14,9 @@
 #define UNIPROT_LIST_GENES 1
 #define UNIPROT_LIST_ORGANISM 2
 
+#define UNIPROT_REFERENCE_SWISSPROT 1
+#define UNIPROT_REFERENCE_UNIREF90 2
+
 typedef struct {
 	char * id;
 	char * gene;
@@ -64,6 +67,8 @@ int uniprotEntryCompareOrganism (const void * passEntry1, const void * passEntry
 int uniprotEntryCompareOnline (const void * passEntry1, const void * passEntry2);
 
 // UniProt Interoperability
+int cleanUniprotReference(int passReference, const char * passBase);
+void cleanUniprotReferenceUniref(const char * passName, int passANN);
 const char * downloadUniprotReference(int passReference);
 void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer);
 size_t receiveUniprotOutput(void * passString, size_t passSize, size_t passNum, void * retStream);
