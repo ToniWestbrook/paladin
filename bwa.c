@@ -327,7 +327,8 @@ int bwa_mem2idx(int64_t l_mem, uint8_t *mem, bwaidx_t *idx)
 		idx->bns->anns[i].name = (char*)(mem + k); k += strlen(idx->bns->anns[i].name) + 1;
 		idx->bns->anns[i].anno = (char*)(mem + k); k += strlen(idx->bns->anns[i].anno) + 1;
 	}
-	idx->pac = (uint8_t*)(mem + k); k += idx->bns->l_pac/4+1;
+	//idx->pac = (uint8_t*)(mem + k); k += idx->bns->l_pac/4+1;
+	idx->pac = (uint8_t*)(mem + k); k += idx->bns->l_pac+1;
 	assert(k == l_mem);
 
 	idx->l_mem = k; idx->mem = mem;
@@ -366,7 +367,8 @@ int bwa_idx2mem(bwaidx_t *idx)
 	free(idx->bns->anns);
 
 	// copy idx->pac
-	x = idx->bns->l_pac/4+1;
+	//x = idx->bns->l_pac/4+1;
+	x = idx->bns->l_pac+1;
 	mem = realloc(mem, k + x);
 	memcpy(mem + k, idx->pac, x); k += x;
 	free(idx->bns); idx->bns = 0;

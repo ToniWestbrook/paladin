@@ -86,7 +86,7 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 			break;
 
 		case OUTPUT_TYPE_UNIPROT_FULL:
-			fprintf(passStream, "Count\tAbundance\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\n");
+			fprintf(passStream, "Count\tAbundance\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n");
 			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
 			freeCURLBuffer(&tempBuffer);
 
@@ -297,7 +297,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 			}
 
 			// Stage 3 - Retrieve Results
-			sprintf(queryString, "query=job:%s&format=tab&columns=entry%%20name,id,organism,protein%%20names,genes,pathway,features,go,reviewed,existence,comments", jobID);
+			sprintf(queryString, "query=job:%s&format=tab&columns=entry%%20name,id,organism,protein%%20names,genes,pathway,features,go,reviewed,existence,comments,database(KEGG),database(GeneID),database(PATRIC),database(EnsemblBacteria)", jobID);
 			curl_easy_setopt(curlHandle, CURLOPT_URL, "http://www.uniprot.org/uniprot/");
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, retBuffer);
 

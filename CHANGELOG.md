@@ -1,5 +1,10 @@
 # Change Log
 
+## [1.2.0] - 2016-03-27
+### Added
+- New columns in UniProt report related to database cross-references (KEGG, NCBI, PATRIC, Ensembl)
+- Added experimental support/fix for shared memory indexed references
+
 ## [1.1.0] - 2015-11-08
 ### Added
 - Option for preparing a pre-downloaded and/or pre-indexed reference.  This will skip the download and clean any applicable portion of the reference/index
