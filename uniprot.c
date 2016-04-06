@@ -16,11 +16,11 @@ int uniprotSecListCount = 0;
 
 // For code clarity, 0 position reserved for non-Uniprot reference
 const char * downloadNames[] = {"",
-								"uniprot_sprot.fasta.gz",
-								"uniref90.fasta.gz"};
+		"uniprot_sprot.fasta.gz",
+		"uniref90.fasta.gz"};
 const char * downloadURLs[] = {"",
-							   "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
-							   "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz"};
+		"ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+		"ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz"};
 
 // Select global list by index (primary/secondary)
 UniprotList * getGlobalLists(int passPrimary) {
@@ -75,22 +75,22 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 
 	// Render requested report
 	switch (passType) {
-		case OUTPUT_TYPE_UNIPROT_SIMPLE:
-			fprintf(passStream, "Count\tAbundance\tUniProtKB\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
-			fprintf(passStream, "\n\nCount\tAbundance\tGene\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES, passStream);
-			fprintf(passStream, "\n\nCount\tAbundance\tOrganism\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM, passStream);
+	case OUTPUT_TYPE_UNIPROT_SIMPLE:
+		fprintf(passStream, "Count\tAbundance\tUniProtKB\n");
+		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
+		fprintf(passStream, "\n\nCount\tAbundance\tGene\n");
+		renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES, passStream);
+		fprintf(passStream, "\n\nCount\tAbundance\tOrganism\n");
+		renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM, passStream);
 
-			break;
+		break;
 
-		case OUTPUT_TYPE_UNIPROT_FULL:
-			fprintf(passStream, "Count\tAbundance\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n");
-			renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
-			freeCURLBuffer(&tempBuffer);
+	case OUTPUT_TYPE_UNIPROT_FULL:
+		fprintf(passStream, "Count\tAbundance\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n");
+		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
+		freeCURLBuffer(&tempBuffer);
 
-			break;
+		break;
 	}
 
 	cleanUniprotLists(uniprotLists, passPrimary);
@@ -112,15 +112,15 @@ int cleanUniprotReference(int passReference, const char * passBase) {
 
 	// Begin reference-specific preparation
 	switch (passReference) {
-		case UNIPROT_REFERENCE_UNIREF90:
-			cleanUniprotReferenceUniref(passBase, 0);
-			if (indexed) cleanUniprotReferenceUniref(tempName, 1);
+	case UNIPROT_REFERENCE_UNIREF90:
+		cleanUniprotReferenceUniref(passBase, 0);
+		if (indexed) cleanUniprotReferenceUniref(tempName, 1);
 	}
 
 	// If indexed, also fix protein header
 	if (indexed) {
 		sprintf(tempName, "%s.pro", passBase);
-		proHandle = fopen(tempName, "w");
+		proHandle = err_xopen_core(__func__, tempName, "w");
 
 		newHeader.multiFrame = 1;
 		newHeader.nucleotide = 0;
@@ -150,13 +150,13 @@ void cleanUniprotReferenceUniref(const char * passName, int passANN) {
 
 	srcHandle = xzopen(passName, "r");
 	if (!passANN) dstHandle = xzopen(newName, "w");
-	else dstANNHandle = fopen(newName, "w");
+	else dstANNHandle = err_xopen_core(__func__, newName, "w");
 	lineIdx = 0;
 
 	while (gzgets(srcHandle, srcBuffer, 4096)) {
 		// For FASTA files, must start with ">".  For ANN, must be an odd line
 		if (((passANN == 0) && (srcBuffer[0] == '>')) ||
-			((passANN == 1) && (lineIdx % 2 == 1))) {
+				((passANN == 1) && (lineIdx % 2 == 1))) {
 			// Alter header - strip CRLF
 			for (searchIdx = strlen(srcBuffer) - 1 ; searchIdx >= 0 ; searchIdx--) {
 				if ((srcBuffer[searchIdx] == 0x0A) || (srcBuffer[searchIdx] == 0x0D)) {
@@ -208,7 +208,7 @@ const char * downloadUniprotReference(int passReference) {
 	const char * retFile;
 
 	curlHandle = curl_easy_init();
-	fileHandle = fopen(downloadNames[passReference], "w");
+	fileHandle = err_xopen_core(__func__, downloadNames[passReference], "w");
 	retFile = downloadNames[passReference];
 
 	curl_easy_setopt(curlHandle, CURLOPT_URL, downloadURLs[passReference]);
@@ -329,15 +329,15 @@ void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStrea
 	for (entryIdx = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
 		occurPercent = (float) passList->entries[entryIdx].numOccurrence / (float ) occurTotal * 100;
 		switch(passType) {
-			case UNIPROT_LIST_FULL:
-				fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].id);
-				break;
-			case UNIPROT_LIST_GENES:
-				fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].gene);
-				break;
-			case UNIPROT_LIST_ORGANISM:
-				fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].organism);
-				break;
+		case UNIPROT_LIST_FULL:
+			fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].id);
+			break;
+		case UNIPROT_LIST_GENES:
+			fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].gene);
+			break;
+		case UNIPROT_LIST_ORGANISM:
+			fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].organism);
+			break;
 		}
 	}
 }
@@ -387,13 +387,13 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 
 		for (alnIdx = 0, primaryCount = 0 ; alnIdx < passWorker->regs[entryIdx].n ; alnIdx++) {
 			switch (alignType = getAlignmentType(passWorker, entryIdx, alnIdx)) {
-				case MEM_ALIGN_PRIMARY:
-					uniprotPriEntryLists[uniprotPriListCount].entryCount++;
-					// Count non-linear as total alignments
-					if (primaryCount++) totalAlign++;
-					break;
-				case MEM_ALIGN_SECONDARY:
-					uniprotSecEntryLists[uniprotSecListCount].entryCount++; break;
+			case MEM_ALIGN_PRIMARY:
+				uniprotPriEntryLists[uniprotPriListCount].entryCount++;
+				// Count non-linear as total alignments
+				if (primaryCount++) totalAlign++;
+				break;
+			case MEM_ALIGN_SECONDARY:
+				uniprotSecEntryLists[uniprotSecListCount].entryCount++; break;
 			}
 		}	
 
@@ -424,9 +424,10 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 			uniprotEntry = passWorker->bns->anns[refID].name;
 
 			// Strip sequence and frame info for nucleotide references
-			if (passWorker->opt->indexInfo.nucleotide)
-			for (parseIdx = 2 ; (parseIdx > 0) && (*uniprotEntry != 0) ; uniprotEntry++) {
-				if (*uniprotEntry == ':') parseIdx--;
+			if (passWorker->opt->indexInfo.nucleotide) {
+				for (parseIdx = 2 ; (parseIdx > 0) && (*uniprotEntry != 0) ; uniprotEntry++) {
+					if (*uniprotEntry == ':') parseIdx--;
+				}
 			}
 
 			// Strip initial IDs (if present) and description
@@ -436,9 +437,9 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 					parseIdx = 0;
 				}
 			}
-		
+
 			uniprotEntry[parseIdx] = 0;	
-			
+
 			// Full ID
 			globalLists[*globalCount].entries[*currentIdx].id = malloc(strlen(uniprotEntry) + 1);
 			globalLists[*globalCount].entries[*currentIdx].numOccurrence = 1;
@@ -505,7 +506,7 @@ size_t receiveUniprotOutput(void * passString, size_t passSize, size_t passNum, 
 	if (currentBuffer->size + (int)(passSize * passNum) >= currentBuffer->capacity) {
 		currentBuffer->buffer = realloc(currentBuffer->buffer, currentBuffer->capacity + UNIPROT_BUFFER_GROW);
 		currentBuffer->capacity += UNIPROT_BUFFER_GROW;
-        }
+	}
 
 	// Concatenate results
 	memcpy(currentBuffer->buffer + currentBuffer->size, passString, (int) (passSize * passNum));
@@ -623,19 +624,19 @@ void aggregateUniprotList(UniprotList * retList, int passListType, int passPrima
 
 	// First sort full list
 	switch (passListType) {
-		case UNIPROT_LIST_FULL:
-			qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareID);
-			memberOffset = offsetof(UniprotEntry, id);
-			break;
-		case UNIPROT_LIST_GENES:
-			qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareGene);
-			memberOffset = offsetof(UniprotEntry, gene);
-			break;
-		case UNIPROT_LIST_ORGANISM:
-			qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
-			memberOffset = offsetof(UniprotEntry, organism);
-			break;
-		default: memberOffset = 0; break;
+	case UNIPROT_LIST_FULL:
+		qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareID);
+		memberOffset = offsetof(UniprotEntry, id);
+		break;
+	case UNIPROT_LIST_GENES:
+		qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareGene);
+		memberOffset = offsetof(UniprotEntry, gene);
+		break;
+	case UNIPROT_LIST_ORGANISM:
+		qsort(globalLists[0].entries, globalLists[0].entryCount, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
+		memberOffset = offsetof(UniprotEntry, organism);
+		break;
+	default: memberOffset = 0; break;
 	}
 
 	// Count entry occurrences and aggregate into return list

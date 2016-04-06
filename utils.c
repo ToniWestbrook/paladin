@@ -99,10 +99,13 @@ void logMessageRaw(int passLevel, char * passFormat, ...) {
 FILE *err_xopen_core(const char *func, const char *fn, const char *mode)
 {
 	FILE *fp = 0;
+	char * rwMessage = "reading writing";
+
 	if (strcmp(fn, "-") == 0)
 		return (strstr(mode, "r"))? stdin : stdout;
 	if ((fp = fopen(fn, mode)) == 0) {
-		err_fatal(func, "fail to open file '%s' : %s", fn, strerror(errno));
+		if (mode[0] == 'w') rwMessage += 8;
+		err_fatal(func, "Failed to open file '%s' for %s : %s", fn, rwMessage, strerror(errno));
 	}
 	return fp;
 }
@@ -110,7 +113,7 @@ FILE *err_xopen_core(const char *func, const char *fn, const char *mode)
 FILE *err_xreopen_core(const char *func, const char *fn, const char *mode, FILE *fp)
 {
 	if (freopen(fn, mode, fp) == 0) {
-		err_fatal(func, "fail to open file '%s' : %s", fn, strerror(errno));
+		err_fatal(func, "Failed to open file '%s' : %s", fn, strerror(errno));
 	}
 	return fp;
 }
@@ -125,7 +128,7 @@ gzFile err_xzopen_core(const char *func, const char *fn, const char *mode)
 		return fp;
 	}
 	if ((fp = gzopen(fn, mode)) == 0) {
-		err_fatal(func, "fail to open file '%s' : %s", fn, errno ? strerror(errno) : "Out of memory");
+		err_fatal(func, "Failed to open file '%s' : %s", fn, errno ? strerror(errno) : "Out of memory");
 	}
 	return fp;
 }

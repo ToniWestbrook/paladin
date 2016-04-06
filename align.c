@@ -338,9 +338,9 @@ int command_align(int argc, char *argv[]) {
 		}
 
 		// Open files
-		opt->outputStream = fopen(samName, "w");
-		reportPriStream = fopen(reportPriName, "w");
-		if (opt->flag & MEM_F_ALL) reportSecStream = fopen(reportSecName, "w");
+		opt->outputStream = err_xopen_core(__func__, samName, "w");
+		reportPriStream = err_xopen_core(__func__, reportPriName, "w");
+		if (opt->flag & MEM_F_ALL) reportSecStream = err_xopen_core(__func__, reportSecName, "w");
 
 	}
 

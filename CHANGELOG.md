@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.2.1] - 2016-04-05
+### Changed
+- All file IO now checks for open errors (a few weren't checking previously)
+
 ## [1.2.0] - 2016-03-27
 ### Added
 - New columns in UniProt report related to database cross-references (KEGG, NCBI, PATRIC, Ensembl)

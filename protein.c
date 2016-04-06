@@ -25,57 +25,26 @@ extern unsigned char nst_nt4_table[256];
 
 // Codon encoded as 6 bit value, MSB as left-most nucleotide in 3-mer
 unsigned char codon_aa_hash[64] = {
-	'K', 'N', 'K', 'N', // AA?
-	'T', 'T', 'T', 'T', // AC?
-	'R', 'S', 'R', 'S', // AG?
-	'I', 'I', 'M', 'I', // AT?
+		'K', 'N', 'K', 'N', // AA?
+		'T', 'T', 'T', 'T', // AC?
+		'R', 'S', 'R', 'S', // AG?
+		'I', 'I', 'M', 'I', // AT?
 
-	'Q', 'H', 'Q', 'H', // CA?
-	'P', 'P', 'P', 'P', // CC?
-	'R', 'R', 'R', 'R', // CG?
-	'L', 'L', 'L', 'L', // CT?
+		'Q', 'H', 'Q', 'H', // CA?
+		'P', 'P', 'P', 'P', // CC?
+		'R', 'R', 'R', 'R', // CG?
+		'L', 'L', 'L', 'L', // CT?
 
-	'E', 'D', 'E', 'D', // GA?
-	'A', 'A', 'A', 'A', // GC?
-	'G', 'G', 'G', 'G', // GG?
-	'V', 'V', 'V', 'V', // GT?
+		'E', 'D', 'E', 'D', // GA?
+		'A', 'A', 'A', 'A', // GC?
+		'G', 'G', 'G', 'G', // GG?
+		'V', 'V', 'V', 'V', // GT?
 
-	'*', 'Y', '*', 'Y', // TA?
-	'S', 'S', 'S', 'S', // TC?
-	'*', 'C', 'W', 'C', // TG?
-	'L', 'F', 'L', 'F', // TT?
+		'*', 'Y', '*', 'Y', // TA?
+		'S', 'S', 'S', 'S', // TC?
+		'*', 'C', 'W', 'C', // TG?
+		'L', 'F', 'L', 'F', // TT?
 };
-
-// Debug/Test function to lookup corresponding CDS to start read location
-void testReadHeader(char * passOrig, char * retNew) {
-	FILE * gffHandle;
-	int parseIdx, colonCount;
-	unsigned long searchIdx, line;
-	CDS currentCDS;
-
-	retNew[0] = 0;
-
-	// Find start of number
-	for (parseIdx = 0, colonCount = 0 ; parseIdx < strlen(passOrig) ; parseIdx++) {
-		if (passOrig[parseIdx] == ':') colonCount++;
-		if (colonCount == 10) break;
-	}
-
-	// Found number
-	parseIdx++;
-	if (parseIdx < strlen(passOrig)) {
-		searchIdx = atol(passOrig + parseIdx);
-
-		gffHandle = fopen("/thomas1/mcbs913/anthony/mapping/degen/panda/EscherichiaColiStrK-12SubstrMG1655/ecoli.gff", "r");
-		while (getNextCDS(gffHandle, &currentCDS, &line)) {
-			if ((searchIdx >= currentCDS.startIdx) && (searchIdx < currentCDS.endIdx)) {
-				sprintf(retNew, "%s", currentCDS.description);
-				break;
-			}
-		}
-		fclose(gffHandle);
-	}
-}
 
 // Construct 6-bit codon from 3 ASCII characters
 unsigned char encodeCodon(char * passSequence, int passStrand) {
@@ -88,7 +57,7 @@ unsigned char encodeCodon(char * passSequence, int passStrand) {
 		// Calculate absolute index from relative
 		absIdx = relIdx;
 		if (passStrand < 0) absIdx = absIdx * -1;
- 
+
 		// If this codon has any ambiguous nucleotides, signal with 0xFF
 		if (nst_nt4_table[(int) passSequence[absIdx]] > 3) {
 			return 0xFF;
@@ -127,7 +96,7 @@ int convertToAA(char * passSequence, CDS * passCDS, char ** retSequence, unsigne
 
 		// Encode codon
 		currentCodon = encodeCodon(passSequence + seqStart + (passCDS->strand * nucIdx), passCDS->strand);
-		
+
 		// If ambiguous nucleotides are present, assign ambiguous AA
 		if (currentCodon == 0xFF) {
 			(*retSequence)[aaIdx] = 'X';
@@ -136,7 +105,7 @@ int convertToAA(char * passSequence, CDS * passCDS, char ** retSequence, unsigne
 		// Hash to amino acid IUPAC
 		(*retSequence)[aaIdx] = codon_aa_hash[currentCodon];
 	}
-	
+
 	return 0;
 }
 
@@ -234,7 +203,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], CDS * 
 
 			// Filter minimum ORF size
 			//if (srcLen < passMinORF) continue;
-			
+
 			// Add CDS record if valid (current strategy marks all as valid)
 			if (validEntry) {
 				if (relStart < 0) relStart = srcFrameIdx;
@@ -332,7 +301,7 @@ int getNextCDS(FILE * passFile, CDS * retCDS, unsigned long * retLine) {
 	int fieldIdx, scanIdx;
 	int readCount;
 	char readBuffer[GFF_MAX_FIELD], field[9][GFF_MAX_FIELD];
-	
+
 	// Iterate through each annotation line until CDS or EOF
 	while (fgets(readBuffer, GFF_MAX_FIELD, passFile)) {
 		// Skip comments and blank lines
@@ -369,181 +338,176 @@ int getNextCDS(FILE * passFile, CDS * retCDS, unsigned long * retLine) {
 
 // Convert the given reference nucleotide FASTA and GFF file to a protein FASTA file (for all one/all frames)
 int writeIndexProtein(const char * passPrefix, const char * passProName, const char * passAnnName, IndexHeader passHeader) {
-        CDS currentCDS;
-        gzFile inputSeqPtr;
-        FILE * inputAnnPtr, * outputPtr;
-        char * outputBuffer;
-        kseq_t * seq;
-        unsigned long outputSize, currentLine, frameIdx;
+	CDS currentCDS;
+	gzFile inputSeqPtr;
+	FILE * inputAnnPtr, * outputPtr;
+	char * outputBuffer;
+	kseq_t * seq;
+	unsigned long outputSize, currentLine, frameIdx;
 
-        // Prepare file handles
-        inputSeqPtr = xzopen(passPrefix, "r");
-        inputAnnPtr = fopen(passAnnName, "r");
-        outputPtr = fopen(passProName, "w");
+	// Prepare file handles
+	inputSeqPtr = xzopen(passPrefix, "r");
+	inputAnnPtr = err_xopen_core(__func__, passAnnName, "r");
+	outputPtr = err_xopen_core(__func__, passProName, "w");
 
-        if (inputAnnPtr == NULL) {
-        	logMessage(__func__, LOG_LEVEL_ERROR, "Failed to open file '%s' : %s\n", __func__, passAnnName, errno ? strerror(errno) : "Out of memory");
-        	exit(EXIT_FAILURE);
-        }
+	// Write index type header
+	passHeader.nucleotide = 1;
+	writeIndexHeader(outputPtr, passHeader);
 
-    	// Write index type header
-        passHeader.nucleotide = 1;
-    	writeIndexHeader(outputPtr, passHeader);
+	// Read in 1st sequence data
+	seq = kseq_init(inputSeqPtr);
+	kseq_read(seq);
 
-        // Read in 1st sequence data
-        seq = kseq_init(inputSeqPtr);
-        kseq_read(seq);
+	// Iterate through each CDS sequence in the annotation file
+	currentLine = 0;
+	while (getNextCDS(inputAnnPtr, &currentCDS, &currentLine)) {
+		for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
 
-        // Iterate through each CDS sequence in the annotation file
-        currentLine = 0;
-        while (getNextCDS(inputAnnPtr, &currentCDS, &currentLine)) {
-        	for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-				convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+			// Line ID of CDS : Frame : Sequence Header
+			fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, currentCDS.description, (int) outputSize, outputBuffer);
+			free(outputBuffer);
 
-				// Line ID of CDS : Frame : Sequence Header
-				fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, currentCDS.description, (int) outputSize, outputBuffer);
-				free(outputBuffer);
+			currentCDS.startIdx++;
+			currentCDS.endIdx++;
+			if (frameIdx == 2) currentCDS.strand *= -1;
 
-                currentCDS.startIdx++;
-				currentCDS.endIdx++;
-				if (frameIdx == 2) currentCDS.strand *= -1;
+			if (!passHeader.multiFrame) break;
+		}
+	}
 
-				if (!passHeader.multiFrame) break;
-			}
-        }
-
-        // Close files
-        fflush(outputPtr);
-        err_gzclose(inputSeqPtr);
-        err_fclose(inputAnnPtr);
-        err_fclose(outputPtr);
-        kseq_destroy(seq);
-        return 0;
+	// Close files
+	fflush(outputPtr);
+	err_gzclose(inputSeqPtr);
+	err_fclose(inputAnnPtr);
+	err_fclose(outputPtr);
+	kseq_destroy(seq);
+	return 0;
 }
 
 int writeIndexCodingProtein(const char * passPrefix, const char * passProName, IndexHeader passHeader) {
-    CDS currentCDS;
-    gzFile  inputSeqPtr;
-    FILE * outputPtr;
-    char * outputBuffer;
-    kseq_t * seq;
-    unsigned long outputSize, currentLine, frameIdx;
+	CDS currentCDS;
+	gzFile  inputSeqPtr;
+	FILE * outputPtr;
+	char * outputBuffer;
+	kseq_t * seq;
+	unsigned long outputSize, currentLine, frameIdx;
 
-    // Prepare file handles
-    inputSeqPtr = xzopen(passPrefix, "r");
-    outputPtr = fopen(passProName, "w");
+	// Prepare file handles
+	inputSeqPtr = xzopen(passPrefix, "r");
+	outputPtr = err_xopen_core(__func__, passProName, "w");
 
 	// Write index type header
-    passHeader.nucleotide = 1;
+	passHeader.nucleotide = 1;
 	writeIndexHeader(outputPtr, passHeader);
 
-    // Iterate through each sequence
-    seq = kseq_init(inputSeqPtr);
-    currentLine = 0;
+	// Iterate through each sequence
+	seq = kseq_init(inputSeqPtr);
+	currentLine = 0;
 
-    while (kseq_read(seq) > 0) {
-            for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-            	if (frameIdx < 3) {
-                    currentCDS.startIdx = (frameIdx % 3);
-                    currentCDS.endIdx = getLastAlignedPos(seq->seq.l, frameIdx);
-                    currentCDS.strand = 1;
-                    currentCDS.phase = 0;
-            	}
-            	else {
-                    currentCDS.startIdx = getLastAlignedPos(seq->seq.l, frameIdx);
-                    currentCDS.endIdx = seq->seq.l - 1 - (frameIdx % 3);
-                    currentCDS.strand = -1;
-                    currentCDS.phase = 0;
-            	}
+	while (kseq_read(seq) > 0) {
+		for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+			if (frameIdx < 3) {
+				currentCDS.startIdx = (frameIdx % 3);
+				currentCDS.endIdx = getLastAlignedPos(seq->seq.l, frameIdx);
+				currentCDS.strand = 1;
+				currentCDS.phase = 0;
+			}
+			else {
+				currentCDS.startIdx = getLastAlignedPos(seq->seq.l, frameIdx);
+				currentCDS.endIdx = seq->seq.l - 1 - (frameIdx % 3);
+				currentCDS.strand = -1;
+				currentCDS.phase = 0;
+			}
 
-				convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
 
-				// Line ID of CDS : Frame : Sequence Header
-				fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, seq->name.s, (int) outputSize, outputBuffer);
-				free(outputBuffer);
+			// Line ID of CDS : Frame : Sequence Header
+			fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, seq->name.s, (int) outputSize, outputBuffer);
+			free(outputBuffer);
 
-				if (!passHeader.multiFrame) break;
-            }
+			if (!passHeader.multiFrame) break;
+		}
 
-            currentLine++;
-    }
+		currentLine++;
+	}
 
-    // Close files
-    fflush(outputPtr);
-    err_gzclose(inputSeqPtr);
-    err_fclose(outputPtr);
-    kseq_destroy(seq);
+	// Close files
+	fflush(outputPtr);
+	err_gzclose(inputSeqPtr);
+	err_fclose(outputPtr);
+	kseq_destroy(seq);
 
-    return 0;
+	return 0;
 }
 
 int writeIndexDirectProtein(const char * passPrefix, const char * passProName, IndexHeader passHeader) {
 	FILE * outputPtr;
 
-	outputPtr = fopen(passProName, "w");
+	outputPtr = err_xopen_core(__func__, passProName, "w");
 
 	// Write index type header
-    passHeader.nucleotide = 0;
+	passHeader.nucleotide = 0;
 	writeIndexHeader(outputPtr, passHeader);
 
-    // Close file
-    fflush(outputPtr);
-    err_fclose(outputPtr);
+	// Close file
+	fflush(outputPtr);
+	err_fclose(outputPtr);
 
-    return 0;
+	return 0;
 }
 
 // This is a function use for testing - to be removed in final code
 // Currently writes GC content to sequence header in 2nd position
 int writeIndexTestProtein(const char * passPrefix, const char * passProName) {
-    CDS currentCDS;
-    gzFile  inputSeqPtr;
-    FILE * outputPtr;
-    char * outputBuffer;
-    kseq_t * seq;
-    int idx, gcCount;
-    unsigned long outputSize, currentLine, frameIdx;
+	CDS currentCDS;
+	gzFile  inputSeqPtr;
+	FILE * outputPtr;
+	char * outputBuffer;
+	kseq_t * seq;
+	int idx, gcCount;
+	unsigned long outputSize, currentLine, frameIdx;
 
-    // Prepare file handles
-    inputSeqPtr = xzopen(passPrefix, "r");
-    outputPtr = fopen(passProName, "w");
+	// Prepare file handles
+	inputSeqPtr = xzopen(passPrefix, "r");
+	outputPtr = err_xopen_core(__func__, passProName, "w");
 
-    // Iterate through each sequence
-    seq = kseq_init(inputSeqPtr);
-    currentLine = 0;
+	// Iterate through each sequence
+	seq = kseq_init(inputSeqPtr);
+	currentLine = 0;
 
-    while (kseq_read(seq) > 0) {
+	while (kseq_read(seq) > 0) {
 
-            gcCount = 0;
-            for (idx = 0 ; idx < seq->seq.l ; idx++) {
-               if (seq->seq.s[idx] == 'G' || seq->seq.s[idx] == 'C') gcCount++; 
-            }
-   
-            gcCount = gcCount * 100 / seq->seq.l;
+		gcCount = 0;
+		for (idx = 0 ; idx < seq->seq.l ; idx++) {
+			if (seq->seq.s[idx] == 'G' || seq->seq.s[idx] == 'C') gcCount++;
+		}
 
-            for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-                    currentCDS.startIdx = (frameIdx % 3);
-                    currentCDS.endIdx = seq->seq.l - 1 - 3 + (frameIdx % 3);
-                    currentCDS.strand = (frameIdx < 3 ? 1 : -1);
-                    currentCDS.phase = 0;
+		gcCount = gcCount * 100 / seq->seq.l;
 
-                    convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+		for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
+			currentCDS.startIdx = (frameIdx % 3);
+			currentCDS.endIdx = seq->seq.l - 1 - 3 + (frameIdx % 3);
+			currentCDS.strand = (frameIdx < 3 ? 1 : -1);
+			currentCDS.phase = 0;
 
-        			// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
-                    fprintf(outputPtr, ">%lu:%lu:%d:%s\n%.*s\n", currentLine, frameIdx, gcCount, seq->name.s, (int) outputSize, outputBuffer);
-                    free(outputBuffer);
-            }
+			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
 
-            currentLine++;
-    }
+			// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
+			fprintf(outputPtr, ">%lu:%lu:%d:%s\n%.*s\n", currentLine, frameIdx, gcCount, seq->name.s, (int) outputSize, outputBuffer);
+			free(outputBuffer);
+		}
 
-    // Close files
-    fflush(outputPtr);
-    err_gzclose(inputSeqPtr);
-    err_fclose(outputPtr);
-    kseq_destroy(seq);	
+		currentLine++;
+	}
 
-    return 0;
+	// Close files
+	fflush(outputPtr);
+	err_gzclose(inputSeqPtr);
+	err_fclose(outputPtr);
+	kseq_destroy(seq);
+
+	return 0;
 }
 
 
@@ -552,7 +516,7 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 	CDS * orfList;
 	gzFile inputSeqPtr;
 	FILE * outputProPtr, * outputNTPtr;
- 	char * outputProBuffer, * outputNTName;
+	char * outputProBuffer, * outputNTName;
 	kseq_t * seq;
 	unsigned long seqIdx, outputSize, orfCount, orfTotal, orfIdx;
 
@@ -564,13 +528,13 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 
 	// Prepare file handles
 	inputSeqPtr = xzopen(passPrefix, "r");
-	outputProPtr = fopen(passProName, "w");
+	outputProPtr = err_xopen_core(__func__, passProName, "w");
 	outputNTPtr = 0;
 
 	if (passOptions->proteinFlag & ALIGN_FLAG_GEN_NT) {
 		outputNTName = malloc(strlen(passPrefix) + 5);
 		sprintf(outputNTName, "%s.orf", passPrefix);
-		outputNTPtr = fopen(outputNTName, "w");
+		outputNTPtr = err_xopen_core(__func__, outputNTName, "w");
 		free(outputNTName);
 	}
 
