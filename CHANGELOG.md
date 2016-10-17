@@ -1,5 +1,16 @@
 # Change Log
 
+## [1.3.0] - 2016-10-16
+### Added
+- UniProt report now includes average mapping quality for each protein
+
+### Fixed
+- Corrected mapping quality calculations to better reflect probability in protein space
+- Bug that would arise during report generation when UniProt servers were busy, will retry now
+
+### Changed
+- Default alignment threshold score to 15, mismatch penalty to 3, clipping penalty to 0, and open gap penalty to 0 (in accordance with empirical testing)
+
 ## [1.2.1] - 2016-04-05
 ### Changed
 - All file IO now checks for open errors (a few weren't checking previously)

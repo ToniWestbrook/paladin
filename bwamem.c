@@ -54,14 +54,14 @@ mem_opt_t *mem_opt_init()
 	o->outputStream = stdout;
 	o->outputType = OUTPUT_TYPE_UNIPROT_FULL;
 	o->flag = 0;
-	o->a = 1; o->b = 1; //4;
-	o->o_del = o->o_ins = 6;
+	o->a = 1; o->b = 3; //4;
+	o->o_del = o->o_ins = 0; //6
 	o->e_del = o->e_ins = 1;
 	o->w = 100;
-	o->T = 11;
+	o->T = 15;
 	o->zdrop = 100;
 	o->pen_unpaired = 17;
-	o->pen_clip5 = o->pen_clip3 = 5;
+	o->pen_clip5 = o->pen_clip3 = 0;
 	o->max_mem_intv = 20;
 	o->min_orf_len = 250;
 	o->min_orf_percent = 0;
@@ -1040,7 +1040,7 @@ int mem_approx_mapq_se(const mem_opt_t *opt, const mem_alnreg_t *a)
 		double tmp;
 		tmp = l < opt->mapQ_coef_len? 1. : opt->mapQ_coef_fac / log(l);
 		tmp *= identity * identity;
-		mapq = (int)(6.02 * (a->score - sub) / opt->a * tmp * tmp + .499);
+		mapq = (int)(13.01 * (a->score - sub) / opt->a * tmp * tmp + .499);
 	} else {
 		mapq = (int)(MEM_MAPQ_COEF * (1. - (double)sub / a->score) * log(a->seedcov) + .499);
 		mapq = identity < 0.95? (int)(mapq * identity * identity + .499) : mapq;
@@ -1083,6 +1083,9 @@ void mem_reg2sam(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, 
 		if (l && p->secondary < 0) // if supplementary
 			q->flag |= (opt->flag&MEM_F_NO_MULTI)? 0x10000 : 0x800;
 		if (l && !p->is_alt && q->mapq > aa.a[0].mapq) q->mapq = aa.a[0].mapq;
+
+		// Cache mapping quality
+		p->mapq = q->mapq;
 		++l;
 	}
 
@@ -1227,6 +1230,7 @@ mem_aln_t mem_reg2aln(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *
 	assert(a.rid == ar->rid);
 	a.pos = pos - bns->anns[a.rid].offset;
 	a.score = ar->score; a.sub = ar->sub > ar->csub? ar->sub : ar->csub;
+
 	a.is_alt = ar->is_alt; a.alt_sc = ar->alt_sc;
 	free(query);
 	return a;

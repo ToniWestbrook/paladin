@@ -76,17 +76,17 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 	// Render requested report
 	switch (passType) {
 	case OUTPUT_TYPE_UNIPROT_SIMPLE:
-		fprintf(passStream, "Count\tAbundance\tUniProtKB\n");
+		fprintf(passStream, "Count\tAbundance\tMapping Quality\tUniProtKB\n");
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
-		fprintf(passStream, "\n\nCount\tAbundance\tGene\n");
+		fprintf(passStream, "\n\nCount\tAbundance\tMapping Quality\tGene\n");
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES, passStream);
-		fprintf(passStream, "\n\nCount\tAbundance\tOrganism\n");
+		fprintf(passStream, "\n\nCount\tAbundance\tMapping Quality\tOrganism\n");
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM, passStream);
 
 		break;
 
 	case OUTPUT_TYPE_UNIPROT_FULL:
-		fprintf(passStream, "Count\tAbundance\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n");
+		fprintf(passStream, "Count\tAbundance\tMapping Quality\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n");
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
 		freeCURLBuffer(&tempBuffer);
 
@@ -278,6 +278,10 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 			}
 
 			// Stage 2 - Wait for results
+			if (tempBuffer.size >= 50) {
+				logMessage(__func__, LOG_LEVEL_ERROR, "Received unexpected job ID size\n");
+				continue;
+			}
 			sprintf(jobID, "%s", tempBuffer.buffer);
 			sprintf(queryString, "http://www.uniprot.org/jobs/%s.stat", jobID);
 
@@ -318,7 +322,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 
 void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStream) {
 	int entryIdx, occurTotal;
-	float occurPercent;
+	float occurPercent, avgQuality;
 
 	// Count total occurrences for percentages
 	for (entryIdx = 0, occurTotal = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
@@ -328,15 +332,17 @@ void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStrea
 	// Render fields
 	for (entryIdx = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
 		occurPercent = (float) passList->entries[entryIdx].numOccurrence / (float ) occurTotal * 100;
+		avgQuality = (float) passList->entries[entryIdx].totalQuality / (float ) passList->entries[entryIdx].numOccurrence;
+
 		switch(passType) {
 		case UNIPROT_LIST_FULL:
-			fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].id);
+			fprintf(passStream, "%d\t%.2f\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].id);
 			break;
 		case UNIPROT_LIST_GENES:
-			fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].gene);
+			fprintf(passStream, "%d\t%.2f\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].gene);
 			break;
 		case UNIPROT_LIST_ORGANISM:
-			fprintf(passStream, "%d\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, passList->entries[entryIdx].organism);
+			fprintf(passStream, "%d\t%.2f\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].organism);
 			break;
 		}
 	}
@@ -440,10 +446,12 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 
 			uniprotEntry[parseIdx] = 0;	
 
-			// Full ID
+			// Full ID and quality
 			globalLists[*globalCount].entries[*currentIdx].id = malloc(strlen(uniprotEntry) + 1);
-			globalLists[*globalCount].entries[*currentIdx].numOccurrence = 1;
 			sprintf(globalLists[*globalCount].entries[*currentIdx].id, "%s", uniprotEntry);
+			globalLists[*globalCount].entries[*currentIdx].numOccurrence = 1;
+			globalLists[*globalCount].entries[*currentIdx].totalQuality = passWorker->regs[entryIdx].a[alnIdx].mapq;
+
 
 			// Gene/organism
 			for (parseIdx = 0 ; parseIdx < strlen(uniprotEntry) ; parseIdx++) {
@@ -657,6 +665,7 @@ void aggregateUniprotList(UniprotList * retList, int passListType, int passPrima
 		}
 
 		retList->entries[retList->entryCount].numOccurrence++;
+		retList->entries[retList->entryCount].totalQuality += (globalLists[0].entries + entryIdx)->totalQuality;
 	}
 
 	retList->entryCount++;

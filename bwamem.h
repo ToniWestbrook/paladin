@@ -85,6 +85,7 @@ typedef struct {
 	int secondary_all;
 	int seedlen0;   // length of the starting seed
 	int n_comp:30, is_alt:2; // number of sub-alignments chained together
+	int mapq;		// mapping quality cached from mem_aln_t structure for uniprot report
 	float frac_rep;
 	uint64_t hash;
 } mem_alnreg_t;
