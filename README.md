@@ -79,7 +79,7 @@ OUTPUT
 ```
 #FORMAT
 
-Count	Abundance Mapping Quality UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments
+Count	Abundance Mapping Quality UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
 ```
 
 - Count: The number of reads mapping to that UniProt entry
@@ -95,6 +95,10 @@ Count	Abundance Mapping Quality UniProtKB	ID	Organism	Protein Names	Genes	Pathwa
 - Reviewd
 - Existence
 - Comments
+- Cross Reference (KEGG): Corresponding entry in KEGG database (http://www.genome.jp/kegg/)
+- Cross Reference (GeneID): Corresponding entry in NCBI gene database (http://www.ncbi.nlm.nih.gov/gene)
+- Cross Reference (PATRIC): Corresponding entry in PATRIC database (http://www.patricbrc.org)
+- Cross Reference (EnsemblBacteria): Corresponding entry in Ensembl Bacteria database (http://bacteria.ensembl.org)
 
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
