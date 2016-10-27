@@ -32,12 +32,10 @@ Download and prepare UniProt Swiss-Prot index files.
 ```
 paladin prepare -r1 
 ```
-
 Download and prepare UniProt UniRef90 index files.
 ```
 paladin prepare -r2 
 ```
-
 Index UniProt (or another protein) fasta, if not using the automated `prepare` command
 ```
 paladin index -r3 uniprot_sprot.fasta.gz
@@ -49,6 +47,14 @@ paladin align -t 4 -o paladin index input.fastq.gz
 Align a set of reads using 4 theads. Produce a bam file.
 ```
 paladin align -t 4 index input.fastq.gz | samtools view -Sb - > test.bam
+```
+Align a set of reads, preferring higher quality mappings over number of proteins detected.
+```
+paladin align -T 20 -o paladin index input.fastq.gz
+```
+Align a set of reads, report secondary alignments, and generate UniProt report for both primary and secondary alignments.
+```
+paladin align -a -o paladin index input.fastq.gz
 ```
 
 If you're intersted in trying this out on a smallish test file, try downloading this one which is from a human lung metagenome study: http://www.ebi.ac.uk/ena/data/view/PRJNA71831
