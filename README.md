@@ -79,12 +79,13 @@ OUTPUT
 ```
 #FORMAT
 
-Count	Abundance Mapping Quality UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
+Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
 ```
 
 - Count: The number of reads mapping to that UniProt entry
 - Abundance: The percentage of reads mapping to that UniProt entry
-- Mapping Quality: The average mapping quality for reads mapped to that UniProt entry (Phred scale, max 60)
+- Quality (Avg): The average mapping quality for reads mapped to that UniProt entry (Phred scale, max 60)
+- Quality (Max): The maximum mapping quality for reads mapped to that UniProt entry (Phred scale, max 60)
 - UniProtKB: The ID containing the Gene short-code and species of origin
 - ID: The Uniprot code
 - Organims: The Organims from which the Uniprot ID is derived. Note that one should use this to generate a taxonomic profile of your sample
