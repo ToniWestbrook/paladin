@@ -23,6 +23,7 @@ typedef struct {
 	char * organism;
 	int numOccurrence;
 	int totalQuality;
+    int maxQuality;
 } UniprotEntry;
 
 typedef struct {

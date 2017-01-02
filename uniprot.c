@@ -62,6 +62,7 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 	UniprotList * globalLists;
 	UniprotList uniprotLists[3];
 	CURLBuffer tempBuffer;
+    char commonHeader[] = "Count\tAbundance\tQuality (Avg)\tQuality (Max)";
 
 	// Prepare data
 	prepareUniprotReport(passType, passPrimary, uniprotLists, &tempBuffer);
@@ -76,17 +77,17 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
 	// Render requested report
 	switch (passType) {
 	case OUTPUT_TYPE_UNIPROT_SIMPLE:
-		fprintf(passStream, "Count\tAbundance\tMapping Quality\tUniProtKB\n");
+		fprintf(passStream, "%s\tUniProtKB\n", commonHeader);
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
-		fprintf(passStream, "\n\nCount\tAbundance\tMapping Quality\tGene\n");
+		fprintf(passStream, "\n\n%s\tGene\n", commonHeader);
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_GENES, UNIPROT_LIST_GENES, passStream);
-		fprintf(passStream, "\n\nCount\tAbundance\tMapping Quality\tOrganism\n");
+		fprintf(passStream, "\n\n%s\tOrganism\n", commonHeader);
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_ORGANISM, UNIPROT_LIST_ORGANISM, passStream);
 
 		break;
 
 	case OUTPUT_TYPE_UNIPROT_FULL:
-		fprintf(passStream, "Count\tAbundance\tMapping Quality\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n");
+		fprintf(passStream, "%s\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n", commonHeader);
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
 		freeCURLBuffer(&tempBuffer);
 
@@ -323,6 +324,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStream) {
 	int entryIdx, occurTotal;
 	float occurPercent, avgQuality;
+    char commonFields[] = "%d\t%.5f\t%.5f\t%d\t%s\n";
 
 	// Count total occurrences for percentages
 	for (entryIdx = 0, occurTotal = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
@@ -331,19 +333,19 @@ void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStrea
 
 	// Render fields
 	for (entryIdx = 0 ; entryIdx < passList->entryCount ; entryIdx++) {
-		occurPercent = (float) passList->entries[entryIdx].numOccurrence / (float ) occurTotal * 100;
-		avgQuality = (float) passList->entries[entryIdx].totalQuality / (float ) passList->entries[entryIdx].numOccurrence;
+		occurPercent = (float) passList->entries[entryIdx].numOccurrence / (float) occurTotal * 100;
+		avgQuality = (float) passList->entries[entryIdx].totalQuality / (float) passList->entries[entryIdx].numOccurrence;
 
 		switch(passType) {
-		case UNIPROT_LIST_FULL:
-			fprintf(passStream, "%d\t%.2f\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].id);
-			break;
-		case UNIPROT_LIST_GENES:
-			fprintf(passStream, "%d\t%.2f\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].gene);
-			break;
-		case UNIPROT_LIST_ORGANISM:
-			fprintf(passStream, "%d\t%.2f\t%.2f\t%s\n", passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].organism);
-			break;
+		    case UNIPROT_LIST_FULL:
+		    	fprintf(passStream, commonFields, passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].maxQuality,  passList->entries[entryIdx].id);
+		    	break;
+		    case UNIPROT_LIST_GENES:
+			    fprintf(passStream, commonFields, passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].maxQuality, passList->entries[entryIdx].gene);
+			    break;
+		    case UNIPROT_LIST_ORGANISM:
+			    fprintf(passStream, commonFields, passList->entries[entryIdx].numOccurrence, occurPercent, avgQuality, passList->entries[entryIdx].maxQuality, passList->entries[entryIdx].organism);
+			    break;
 		}
 	}
 }
@@ -375,7 +377,7 @@ void renderNumberAligned(const mem_opt_t * passOptions) {
 
 int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 	int entryIdx, alnIdx, addPriIdx, addSecIdx, parseIdx;
-	int refID, alignType, primaryCount, totalAlign;
+	int refID, alignType, primaryCount, totalAlign, entryQuality;
 	UniprotList * globalLists;
 	int * globalCount, * currentIdx;
 	char * uniprotEntry;
@@ -450,8 +452,12 @@ int addUniprotList(worker_t * passWorker, int passSize, int passFull) {
 			globalLists[*globalCount].entries[*currentIdx].id = malloc(strlen(uniprotEntry) + 1);
 			sprintf(globalLists[*globalCount].entries[*currentIdx].id, "%s", uniprotEntry);
 			globalLists[*globalCount].entries[*currentIdx].numOccurrence = 1;
-			globalLists[*globalCount].entries[*currentIdx].totalQuality = passWorker->regs[entryIdx].a[alnIdx].mapq;
 
+            entryQuality = passWorker->regs[entryIdx].a[alnIdx].mapq;
+			globalLists[*globalCount].entries[*currentIdx].totalQuality = entryQuality;
+            if (entryQuality > globalLists[*globalCount].entries[*currentIdx].maxQuality) {
+                globalLists[*globalCount].entries[*currentIdx].maxQuality = entryQuality;
+            }
 
 			// Gene/organism
 			for (parseIdx = 0 ; parseIdx < strlen(uniprotEntry) ; parseIdx++) {
@@ -666,6 +672,9 @@ void aggregateUniprotList(UniprotList * retList, int passListType, int passPrima
 
 		retList->entries[retList->entryCount].numOccurrence++;
 		retList->entries[retList->entryCount].totalQuality += (globalLists[0].entries + entryIdx)->totalQuality;
+        if ((globalLists[0].entries + entryIdx)->maxQuality > retList->entries[retList->entryCount].maxQuality) {
+            retList->entries[retList->entryCount].maxQuality = (globalLists[0].entries + entryIdx)->maxQuality;
+        }
 	}
 
 	retList->entryCount++;

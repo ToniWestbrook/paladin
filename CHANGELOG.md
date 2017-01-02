@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.3.1] - 2017-01-01
+### Added
+- UniProt report now includes max mapping quality for each protein
+
+### Changed
+- UniProt report floating precision now set to 5 digits
+
 ## [1.3.0] - 2016-10-16
 ### Added
 - UniProt report now includes average mapping quality for each protein
