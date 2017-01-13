@@ -10,6 +10,7 @@ PROG=		paladin
 INCLUDES=	
 LIBS=		-lm -lz -lpthread
 SUBDIRS=	.
+INSTALLDIR = /usr/local/bin
 
 ifeq ($(shell uname -s),Linux)
 	LIBS += -lrt
@@ -37,6 +38,9 @@ depend:
 check:
 	cd sample_data && \
 	sh ./make_test.sh
+
+install:paladin
+	install -m 0755 paladin $(INSTALLDIR)
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
