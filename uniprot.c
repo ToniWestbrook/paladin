@@ -35,7 +35,7 @@ int * getGlobalCount(int passPrimary) {
 }
 
 
-void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists, CURLBuffer * passBuffer) {
+void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists, CURLBuffer * passBuffer, const char * passProxy) {
 	UniprotList * globalLists;
 
 	// Aggregate and sort lists by value
@@ -48,7 +48,7 @@ void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists
 	// Report specific preparation
 	if (passType == OUTPUT_TYPE_UNIPROT_FULL) {
 		// Submit entries to UniProt and retrieve full information
-		retrieveUniprotOnline(passLists + UNIPROT_LIST_FULL, passBuffer);
+		retrieveUniprotOnline(passLists + UNIPROT_LIST_FULL, passBuffer, passProxy);
 		joinOnlineLists(passLists + UNIPROT_LIST_FULL, passBuffer->buffer);
 	}
 
@@ -58,14 +58,14 @@ void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists
 	qsort(passLists[UNIPROT_LIST_ORGANISM].entries, passLists[UNIPROT_LIST_ORGANISM].entryCount, sizeof(UniprotEntry), uniprotEntryCompareOrganism);
 }
 
-void renderUniprotReport(int passType, int passPrimary, FILE * passStream) {
+void renderUniprotReport(int passType, int passPrimary, FILE * passStream, const char * passProxy) {
 	UniprotList * globalLists;
 	UniprotList uniprotLists[3];
 	CURLBuffer tempBuffer;
     char commonHeader[] = "Count\tAbundance\tQuality (Avg)\tQuality (Max)";
 
 	// Prepare data
-	prepareUniprotReport(passType, passPrimary, uniprotLists, &tempBuffer);
+	prepareUniprotReport(passType, passPrimary, uniprotLists, &tempBuffer, passProxy);
 
 	// Report no data
 	globalLists = getGlobalLists(passPrimary);
@@ -202,7 +202,7 @@ void cleanUniprotReferenceUniref(const char * passName, int passANN) {
 }
 
 // Download the requested UniProt reference (sprot/trembl/uniref90)
-const char * downloadUniprotReference(int passReference) {
+const char * downloadUniprotReference(int passReference, const char * passProxy) {
 	CURL * curlHandle;
 	CURLcode curlResult;
 	FILE * fileHandle;
@@ -213,7 +213,8 @@ const char * downloadUniprotReference(int passReference) {
 	retFile = downloadNames[passReference];
 
 	curl_easy_setopt(curlHandle, CURLOPT_URL, downloadURLs[passReference]);
-	curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, fileHandle) ;
+	curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, fileHandle);
+    if (passProxy) curl_easy_setopt(curlHandle, CURLOPT_PROXY, passProxy);
 
 	logMessage(__func__, LOG_LEVEL_MESSAGE, "Downloading %s...\n", downloadURLs[passReference]);
 	curlResult = curl_easy_perform(curlHandle);
@@ -230,7 +231,7 @@ const char * downloadUniprotReference(int passReference) {
 	return retFile;
 }
 
-void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
+void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const char * passProxy) {
 	int entryIdx, queryIdx, parseIdx, errorIdx, queryCount;
 	CURL * curlHandle;
 	CURLcode curlResult;
@@ -269,6 +270,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer) {
 			curl_easy_setopt(curlHandle, CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, receiveUniprotOutput);
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &tempBuffer);
+            if (passProxy) curl_easy_setopt(curlHandle, CURLOPT_PROXY, passProxy);
 
 			resetCURLBuffer(&tempBuffer);
 			curlResult = curl_easy_perform(curlHandle);

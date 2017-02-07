@@ -1,7 +1,7 @@
 /*
    The MIT License
 
-   Copyright (c) 2015 by Anthony Westbrook, University of New Hampshire <anthonyw@wildcats.unh.edu>
+   Copyright (c) 2015 by Anthony Westbrook, University of New Hampshire <anthony.westbrook@unh.edu>
    Copyright (c) 2011 by Attractive Chaos <attractor@live.co.uk>
 
    Permission is hereby granted, free of charge, to any person obtaining
@@ -51,7 +51,7 @@
    UniProt-generated functional profile. This text file may be used for all
    downstream characterizations.
 
-   Contact: Toni Westbrook <anthonyw@wildcats.unh.edu>
+   Contact: Toni Westbrook <anthony.westbrook@unh.edu>
    For information regarding BWA, contact Heng Li <lh3@sanger.ac.uk>
 */
 
@@ -66,7 +66,7 @@
 #define PACKAGE_VERSION STR(PACKAGE_VERSION_MAJOR) "." STR(PACKAGE_VERSION_MINOR) "." STR(PACKAGE_VERSION_REV)
 #define PACKAGE_VERSION_MAJOR 1
 #define PACKAGE_VERSION_MINOR 3
-#define PACKAGE_VERSION_REV 1
+#define PACKAGE_VERSION_REV 2
 #endif
 
 // Render usage and version details

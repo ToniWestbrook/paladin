@@ -1,5 +1,3 @@
-/* Contact: Toni Westbrook <anthonyw@wildcats.unh.edu> */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -393,7 +391,7 @@ int command_index(int argc, char *argv[]) {
 int command_prepare(int argc, char *argv[]) {
 	char c;
 	char refArg[] = "-p0";
-	const char * refName;
+	const char * refName, * proxyAddress;
 	int refType, valid;
 
 	// Fixed passthrough arguments
@@ -404,10 +402,12 @@ int command_prepare(int argc, char *argv[]) {
 	valid = 1;
 	refType = -1;
 	refName = NULL;
+    proxyAddress = NULL;
 
-	while ((c = getopt(argc, argv, "r:f:")) >= 0) {
+	while ((c = getopt(argc, argv, "r:f:P:")) >= 0) {
 		if (c == 'r') refType = atoi(optarg);
 		if (c == 'f') refName = optarg;
+        if (c == 'P') proxyAddress = optarg;
 		if (c == '?') valid = 0;
 	}
 
@@ -420,7 +420,8 @@ int command_prepare(int argc, char *argv[]) {
 			fprintf(stderr, "    -r <#>         Reference Database:\n");
 			fprintf(stderr, "                     1: UniProtKB Reviewed (Swiss-Prot)\n");
 			fprintf(stderr, "                     2: UniProtKB Clustered 90%% (UniRef90)\n\n");
-			fprintf(stderr, "    -f <ref.fasta> Skip download, use local copy of reference database (may be indexed)\n\n");
+			fprintf(stderr, "    -f <ref.fasta> Skip download, use local copy of reference database (may be indexed)\n");
+            fprintf(stderr, "    -P <address>   HTTP or SOCKS proxy address\n\n");
 			fprintf(stderr, "Examples:\n\n");
 			fprintf(stderr, "   paladin prepare -r2\n");
 			fprintf(stderr, "   paladin prepare -r1 -f uniprot_sprot.fasta.gz\n");
@@ -432,7 +433,7 @@ int command_prepare(int argc, char *argv[]) {
 
 	// We can generalize this in the future to include other reference types
 	if (!refName) {
-		if ((refName = downloadUniprotReference(refType))[0] == 0) {
+		if ((refName = downloadUniprotReference(refType, proxyAddress))[0] == 0) {
 			return 1;
 		}
 	}

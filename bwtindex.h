@@ -1,4 +1,3 @@
-
 #ifndef BWTINDEX_H_
 #define BWTINDEX_H_
 

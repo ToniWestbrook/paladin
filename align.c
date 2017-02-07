@@ -107,6 +107,7 @@ int command_align(int argc, char *argv[]) {
 	FILE * reportPriStream = 0, * reportSecStream = 0;
 	char * readsProName = 0, * indexProName = 0, * prefixName = 0;
 	char * samName = 0, * reportPriName = 0, * reportSecName = 0;
+    const char * proxyAddress;
 
 	memset(&aux, 0, sizeof(ktp_aux_t));
 	memset(pes, 0, VALUE_DOMAIN * sizeof(mem_pestat_t));
@@ -114,8 +115,9 @@ int command_align(int argc, char *argv[]) {
 
 	aux.opt = opt = mem_opt_init();
 	memset(&opt0, 0, sizeof(mem_opt_t));
+    proxyAddress = NULL;
 
-	while ((c = getopt(argc, argv, "1epabgnMCSPVYJjf:F:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epabgnMCSVYJjf:F:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:P:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'u') opt->outputType = atoi(optarg);
 		else if (c == 'f') opt->min_orf_len = atoi(optarg);
@@ -129,9 +131,9 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'T') opt->T = atoi(optarg), opt0.T = 1;
 		else if (c == 'U') opt->pen_unpaired = atoi(optarg), opt0.pen_unpaired = 1;
 		else if (c == 't') opt->n_threads = atoi(optarg), opt->n_threads = opt->n_threads > 1? opt->n_threads : 1;
-		else if (c == 'P') opt->flag |= MEM_F_NOPAIRING;
+		//else if (c == 'P') opt->flag |= MEM_F_NOPAIRING;
 		else if (c == 'a') opt->flag |= MEM_F_ALL;
-		else if (c == 'p') opt->flag |= MEM_F_PE | MEM_F_SMARTPE;
+		//else if (c == 'p') opt->flag |= MEM_F_PE | MEM_F_SMARTPE;
 		else if (c == 'M') opt->flag |= MEM_F_NO_MULTI;
 		else if (c == 'S') opt->flag |= MEM_F_NO_RESCUE;
 		else if (c == 'e') opt->flag |= MEM_F_SELF_OVLP;
@@ -142,6 +144,7 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'g') opt->proteinFlag |= ALIGN_FLAG_GEN_NT;
 		else if (c == 'n') opt->proteinFlag |= ALIGN_FLAG_KEEP_PRO;
 		else if (c == 'J') opt->proteinFlag &= ~ALIGN_FLAG_ADJUST_ORF;
+        else if (c == 'p') opt->proteinFlag |= ALIGN_FLAG_MANUAL_PRO;
 		else if (c == 'c') opt->max_occ = atoi(optarg), opt0.max_occ = 1;
 		else if (c == 'd') opt->zdrop = atoi(optarg), opt0.zdrop = 1;
 		else if (c == 'v') bwa_verbose = atoi(optarg);
@@ -157,6 +160,7 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'C') aux.copy_comment = 1;
 		else if (c == 'K') fixed_chunk_size = atoi(optarg);
 		else if (c == 'X') opt->mask_level = atof(optarg);
+        else if (c == 'P') proxyAddress = optarg;
 		else if (c == 'h') {
 			opt0.max_XA_hits = opt0.max_XA_hits_alt = 1;
 			opt->max_XA_hits = opt->max_XA_hits_alt = strtol(optarg, &p, 10);
@@ -344,8 +348,14 @@ int command_align(int argc, char *argv[]) {
 
 	}
 
-	// Detect ORFs and write protein file
-	writeReadsProtein(argv[optind + 1], readsProName, opt);
+    if (opt->proteinFlag & ALIGN_FLAG_MANUAL_PRO) {
+        // Protein input given, skip ORF detection
+        sprintf(readsProName, argv[optind + 1]);
+    }
+    else {
+        // Detect ORFs and write protein file
+        writeReadsProtein(argv[optind + 1], readsProName, opt);
+    }
 
 	// Open ORFs sequence
 	ko = kopen(readsProName, &fd);
@@ -385,14 +395,14 @@ int command_align(int argc, char *argv[]) {
 
 	// Generate UniProt report if requested
 	if (prefixName != NULL) {
-		renderUniprotReport(opt->outputType, 1, reportPriStream);
+		renderUniprotReport(opt->outputType, 1, reportPriStream, proxyAddress);
 		if (opt->flag & MEM_F_ALL) {
-			renderUniprotReport(opt->outputType, 0, reportSecStream);
+			renderUniprotReport(opt->outputType, 0, reportSecStream, proxyAddress);
 		}
 	}
 
-	// Delete protein file unless requested otherwise
-	if (!(opt->proteinFlag & ALIGN_FLAG_KEEP_PRO)) {
+	// Delete generated protein file unless requested otherwise
+	if (!(opt->proteinFlag & ALIGN_FLAG_KEEP_PRO) && !(opt->proteinFlag & ALIGN_FLAG_MANUAL_PRO)) {
 		remove(readsProName);
 	}
 
@@ -425,6 +435,7 @@ int renderAlignUsage(const mem_opt_t * passOptions) {
 	fprintf(stderr, "Usage: paladin align [options] <idxbase> <in.fq>\n\n");
 
 	fprintf(stderr, "Gene detection options:\n\n");
+    fprintf(stderr, "       -p            disable ORF detection and treat input as protein sequence\n");
 	fprintf(stderr, "       -b            disable brute force ORF detection\n");
 	fprintf(stderr, "       -J            do not adjust minimum ORF length (constant value) for shorter read lengths\n");
 	fprintf(stderr, "       -f INT        minimum ORF length accepted (as constant value) [%d]\n", passOptions->min_orf_len);
@@ -467,6 +478,7 @@ int renderAlignUsage(const mem_opt_t * passOptions) {
 	fprintf(stderr, "       -u INT        report type generated when using reporting and a UniProt reference [%d]\n", passOptions->outputType);
 	fprintf(stderr, "                        0: Simple ID summary report\n");
 	fprintf(stderr, "                        1: Detailed report (Contacts uniprot.org)\n\n");
+    fprintf(stderr, "       -P STR        HTTP or SOCKS proxy address\n");
 	fprintf(stderr, "       -g            generate detected ORF nucleotide sequence FASTA\n");
 	fprintf(stderr, "       -n            keep protein sequence after alignment\n");
 	//fprintf(stderr, "       -p            smart pairing (ignoring in2.fq)\n");

@@ -1,5 +1,3 @@
-/* Contact: Toni Westbrook <anthonyw@wildcats.unh.edu> */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

@@ -90,7 +90,7 @@ mem_opt_t *mem_opt_init()
 	return o;
 }
 
-void filterCompetingAln(worker_t * passWorker, int passCount) {
+void filterCompetingAln(worker_t * passWorker, int passCount, int passDisable) {
 	int seqIdx, alnIdx, bestIdx;
 	int currentSeq, readSeq;
 	int seqTotal, bestTotal;
@@ -101,6 +101,12 @@ void filterCompetingAln(worker_t * passWorker, int passCount) {
 
 	// Iterate through each sequence and alignment
 	for (seqIdx = 0 ; seqIdx < passCount - 1 ; seqIdx++) {
+        // If filtering disabled, simply mark sequence as best
+        if (passDisable) {
+            passWorker->regs[seqIdx].active = 1;
+            continue;
+        }
+
 		// Check if we're in a new sequence or in an alternate frame
 		sscanf(passWorker->seqs[seqIdx].name, "%d:", &readSeq);
 		if (readSeq != currentSeq) {
@@ -113,12 +119,11 @@ void filterCompetingAln(worker_t * passWorker, int passCount) {
 			bestIdx = seqIdx;
 		}
 
-                // Aggregate all score totals for this sequence
-                seqTotal = 0;
-                for (alnIdx = 0 ; alnIdx < passWorker->regs[seqIdx].n ; alnIdx++) {
-                        seqTotal += passWorker->regs[seqIdx].a[alnIdx].score;
-                }
-
+        // Aggregate all score totals for this sequence
+        seqTotal = 0;
+        for (alnIdx = 0 ; alnIdx < passWorker->regs[seqIdx].n ; alnIdx++) {
+            seqTotal += passWorker->regs[seqIdx].a[alnIdx].score;
+        }
 
 		// Check if current alignment is best so far
 		if (seqTotal > bestTotal) {
@@ -128,7 +133,7 @@ void filterCompetingAln(worker_t * passWorker, int passCount) {
 	}
 
 	// Filter final sequence
-	passWorker->regs[bestIdx].active = 1;
+    if (!passDisable) passWorker->regs[bestIdx].active = 1;
 }
 
 int getAlignmentType(worker_t * passWorker, int passEntry, int passAlignment) {
@@ -1300,7 +1305,7 @@ void mem_process_seqs(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bn
 	}
 
 	// Filter competing alignments from multi-frame encoding during ORF detection process
-	filterCompetingAln(&w, n);
+    filterCompetingAln(&w, n, opt->proteinFlag & ALIGN_FLAG_MANUAL_PRO);
 
 	kt_for(opt->n_threads, worker2, &w, (opt->flag&MEM_F_PE)? n>>1 : n);
 

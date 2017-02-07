@@ -130,7 +130,7 @@ typedef struct {
 extern "C" {
 #endif
 
-	void filterCompetingAln(worker_t * passWorker, int passCount);
+	void filterCompetingAln(worker_t * passWorker, int passCount, int passDisable);
 	int getAlignmentType(worker_t * passWorker, int passEntry, int passAlignment);
 
 	smem_i *smem_itr_init(const bwt_t *bwt);

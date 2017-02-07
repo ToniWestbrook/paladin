@@ -1,7 +1,7 @@
 /*
    The MIT License
 
-   Copyright (c) 2015 by Anthony Westbrook, University of New Hampshire <anthonyw@wildcats.unh.edu>
+   Copyright (c) 2015 by Anthony Westbrook, University of New Hampshire <anthony.westbrook@unh.edu>
    Copyright (c) 2011 by Attractive Chaos <attractor@live.co.uk>
 
    Permission is hereby granted, free of charge, to any person obtaining
@@ -51,7 +51,7 @@
    UniProt-generated functional profile. This text file may be used for all
    downstream characterizations.
 
-   Contact: Toni Westbrook <anthonyw@wildcats.unh.edu>
+   Contact: Toni Westbrook <anthony.westbrook@unh.edu>
    For information regarding BWA, contact Heng Li <lh3@sanger.ac.uk>
 */
 
@@ -135,7 +135,7 @@ int renderVersion() {
 	fprintf(stderr, "Program: PALADIN (Protein Alignment and Detection Interface)\n");
 
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
-	fprintf(stderr, "Contact: Toni Westbrook (UNH) <anthonyw@wildcats.unh.edu>\n");
+	fprintf(stderr, "Contact: Toni Westbrook (UNH) <anthony.westbrook@unh.edu>\n");
 	fprintf(stderr, "Based on: BWA by Heng Li <lh3@sanger.ac.uk>\n\n");
 
 	return 1;

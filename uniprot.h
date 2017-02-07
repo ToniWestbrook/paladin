@@ -45,7 +45,7 @@ extern int uniprotPriListCount;
 extern int uniprotSecListCount;
 
 // Rendering
-void renderUniprotReport(int passType, int passPrimary, FILE * passStream);
+void renderUniprotReport(int passType, int passPrimary, FILE * passStream, const char * passProxy);
 void renderUniprotEntries(UniprotList * passList, int passType, FILE * passStream);
 void renderNumberAligned(const mem_opt_t * passOptions);
 
@@ -56,7 +56,7 @@ void cleanUniprotLists(UniprotList * passLists, int passPrimary);
 // Support
 UniprotList * getGlobalLists(int passPrimary);
 int * getGlobalCount(int passPrimary);
-void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists, CURLBuffer * passBuffer);
+void prepareUniprotReport(int passType, int passPrimary, UniprotList * passLists, CURLBuffer * passBuffer, const char * passProxy);
 void prepareUniprotLists(UniprotList * retLists, int passPrimary);
 void aggregateUniprotList(UniprotList * retList, int passListType, int passPrimary);
 void joinOnlineLists(UniprotList * retList, char * passUniprotOutput);
@@ -71,8 +71,8 @@ int uniprotEntryCompareOnline (const void * passEntry1, const void * passEntry2)
 // UniProt Interoperability
 int cleanUniprotReference(int passReference, const char * passBase);
 void cleanUniprotReferenceUniref(const char * passName, int passANN);
-const char * downloadUniprotReference(int passReference);
-void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer);
+const char * downloadUniprotReference(int passReference, const char * passProxy);
+void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const char * passProxy);
 size_t receiveUniprotOutput(void * passString, size_t passSize, size_t passNum, void * retStream);
 void initCURLBuffer(CURLBuffer * passBuffer, int passCapacity);
 void resetCURLBuffer(CURLBuffer * passBuffer);

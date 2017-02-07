@@ -1,5 +1,10 @@
 # Change Log
 
+## [1.3.2] - 2017-02-07
+### Added
+- Alignment command can now directly take a protein multi-FASTA and skip ORF detection (-p option)
+- Prepare and alignment commands can now make use of a proxy server (HTTP/SOCKS) for contacting UniProt (-P option)
+
 ## [1.3.1] - 2017-01-01
 ### Added
 - UniProt report now includes max mapping quality for each protein

@@ -1,5 +1,3 @@
-/* Contact: Toni Westbrook <anthonyw@wildcats.unh.edu> */
-
 #ifndef BWA_BWT_H
 #define BWA_BWT_H
 
