@@ -15,8 +15,6 @@
 #define ALIGN_FLAG_ADJUST_ORF 0x0008
 #define ALIGN_FLAG_MANUAL_PRO 0x0010
 
-extern unsigned char codon_aa_hash[64];
-
 typedef struct {
 	unsigned long startIdx;
 	unsigned long endIdx;
@@ -28,14 +26,14 @@ typedef struct {
 
 // Encoding
 unsigned char encodeCodon(char * passSequence, int passStrand);
-int convertToAA(char * passSequence, CDS * passCDS, char ** retSequence, unsigned long * retSize);
+int convertToAA(char * passSequence, CDS * passCDS, int passTrans, char ** retSequence, unsigned long * retSize);
 
 // ORF Detection
 long getLastAlignedPos(long passLength, int passFrame);
 long getLastAlignedOrfPos(long passLength, int passFrame, mem_opt_t * passOptions);
 void addORFHistory(long * passHistory[2][6], long passHistorySize[6], unsigned long passIdx);
 void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], CDS * * retCDS, unsigned long * retCount);
-int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, CDS * * retCDS, unsigned long * retCount);
+int getSequenceORF(char * passSequence, unsigned long passLength, int passTrans, mem_opt_t * passOptions, CDS * * retCDS, unsigned long * retCount);
 
 // Protein Creation
 int getNextCDS(FILE * passFile, CDS * retCDS, unsigned long * retLine);

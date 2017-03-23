@@ -12,6 +12,7 @@
 #include "bntseq.h"
 #include "bwa.h"
 #include "protein.h"
+#include "translations.h"
 #include "uniprot.h"
 
 static void *process(void *shared, int step, void *_data) {
@@ -117,11 +118,12 @@ int command_align(int argc, char *argv[]) {
 	memset(&opt0, 0, sizeof(mem_opt_t));
     proxyAddress = NULL;
 
-	while ((c = getopt(argc, argv, "1epabgnMCSVYJjf:F:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:P:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epabgnMCSVYJjf:F:z:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:P:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'u') opt->outputType = atoi(optarg);
 		else if (c == 'f') opt->min_orf_len = atoi(optarg);
 		else if (c == 'F') opt->min_orf_percent = atof(optarg);
+        else if (c == 'z') opt->translations = convertTransArgs(optarg);
 		else if (c == 'o') prefixName = optarg;
 		else if (c == '1') no_mt_io = 1;
 		else if (c == 'x') mode = optarg;
@@ -275,6 +277,9 @@ int command_align(int argc, char *argv[]) {
 			return 1; // FIXME memory leak
 		}
 	} else update_a(opt, &opt0);
+
+    // Default to standard genetic code for translations
+    if (!opt->translations) opt->translations = convertTransArgs("");
 
 	// Create scoring weight matrix
 	bwa_fill_scmat(opt->a, opt->b, opt->mat);
@@ -440,6 +445,7 @@ int renderAlignUsage(const mem_opt_t * passOptions) {
 	fprintf(stderr, "       -J            do not adjust minimum ORF length (constant value) for shorter read lengths\n");
 	fprintf(stderr, "       -f INT        minimum ORF length accepted (as constant value) [%d]\n", passOptions->min_orf_len);
 	fprintf(stderr, "       -F FLOAT      minimum ORF length accepted (as percentage of read length) [%.2f]\n", passOptions->min_orf_percent);
+    fprintf(stderr, "       -z INT[,...]  Genetic code used for translation (-z ? for full list) [1]\n");    
 
 
 	fprintf(stderr, "\nAlignment options:\n\n");

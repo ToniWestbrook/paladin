@@ -6,11 +6,11 @@
 #include <math.h>
 #include <errno.h>
 #include "protein.h"
+#include "translations.h"
 #include "bntseq.h"
 #include "utils.h"
 #include "bwt.h"
 #include "main.h"
-
 #include "kseq.h"
 KSEQ_DECLARE(gzFile)
 
@@ -22,7 +22,8 @@ KSEQ_DECLARE(gzFile)
 extern unsigned char nst_nt4_table[256];
 
 // Codon encoded as 6 bit value, MSB as left-most nucleotide in 3-mer
-unsigned char codon_aa_hash[64] = {
+
+/*unsigned char codon_aa_hash[1][64] = {{
 		'K', 'N', 'K', 'N', // AA?
 		'T', 'T', 'T', 'T', // AC?
 		'R', 'S', 'R', 'S', // AG?
@@ -42,8 +43,8 @@ unsigned char codon_aa_hash[64] = {
 		'S', 'S', 'S', 'S', // TC?
 		'*', 'C', 'W', 'C', // TG?
 		'L', 'F', 'L', 'F', // TT?
-};
-
+}};
+*/
 // Construct 6-bit codon from 3 ASCII characters
 unsigned char encodeCodon(char * passSequence, int passStrand) {
 	unsigned char retCodon;
@@ -71,7 +72,7 @@ unsigned char encodeCodon(char * passSequence, int passStrand) {
 }
 
 // Give a nucleotide sequence and a CDS entry (containing alignment info), return the corresponding protein sequence
-int convertToAA(char * passSequence, CDS * passCDS, char ** retSequence, unsigned long * retSize) {
+int convertToAA(char * passSequence, CDS * passCDS, int passTrans, char ** retSequence, unsigned long * retSize) {
 	unsigned long nucIdx, aaIdx;
 	unsigned long seqLen, seqStart;
 	unsigned char currentCodon;
@@ -95,13 +96,14 @@ int convertToAA(char * passSequence, CDS * passCDS, char ** retSequence, unsigne
 		// Encode codon
 		currentCodon = encodeCodon(passSequence + seqStart + (passCDS->strand * nucIdx), passCDS->strand);
 
-		// If ambiguous nucleotides are present, assign ambiguous AA
 		if (currentCodon == 0xFF) {
+            // If ambiguous nucleotides are present, assign ambiguous AA
 			(*retSequence)[aaIdx] = 'X';
 		}
-
-		// Hash to amino acid IUPAC
-		(*retSequence)[aaIdx] = codon_aa_hash[currentCodon];
+        else {
+            // Hash to amino acid IUPAC
+            (*retSequence)[aaIdx] = codon_aa_hash[passTrans][currentCodon];
+        }
 	}
 
 	return 0;
@@ -218,7 +220,7 @@ void compileORFHistory(long * passHistory[2][6], long passHistorySize[6], CDS * 
 }
 
 // Scan nucleotide sequence for all recognized ORFs, return as CDS array
-int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * passOptions, CDS * * retCDS, unsigned long * retCount) {
+int getSequenceORF(char * passSequence, unsigned long passLength, int passTrans, mem_opt_t * passOptions, CDS * * retCDS, unsigned long * retCount) {
 	int frameIdx, addIdx, strandDir, relFrame;
 	long seqIdx, absIdx, lastStart;
 	long endSeqPos, endOrfPos;
@@ -255,8 +257,8 @@ int getSequenceORF(char * passSequence, unsigned long passLength, mem_opt_t * pa
 			// Encode codon
 			currentCodon = encodeCodon(passSequence + absIdx, strandDir);
 
-			// Check for stop codon (TAA - 0x30, TAG - 0x32, TGA - 0x38) or EOS
-			if ((currentCodon == 0x30) || (currentCodon == 0x32) || (currentCodon == 0x38) || (seqIdx + 2 == endSeqPos)) {
+			// Check for stop codon or EOS
+			if ((codon_aa_hash[passTrans][currentCodon] == '*') || (seqIdx + 2 == endSeqPos)) {
 				if (seqIdx + relFrame + 2 - lastStart >= endOrfPos) {
 					// Translate current (non-brute) or all frames (brute)
 					for (addIdx = 0 ; addIdx < 6 ; addIdx++) {
@@ -360,7 +362,7 @@ int writeIndexProtein(const char * passPrefix, const char * passProName, const c
 	currentLine = 0;
 	while (getNextCDS(inputAnnPtr, &currentCDS, &currentLine)) {
 		for (frameIdx = 0 ; frameIdx < 6 ; frameIdx++) {
-			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+			convertToAA(seq->seq.s, &currentCDS, 0, &outputBuffer, &outputSize);
 
 			// Line ID of CDS : Frame : Sequence Header
 			fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, currentCDS.description, (int) outputSize, outputBuffer);
@@ -418,7 +420,7 @@ int writeIndexCodingProtein(const char * passPrefix, const char * passProName, I
 				currentCDS.phase = 0;
 			}
 
-			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+			convertToAA(seq->seq.s, &currentCDS, 0, &outputBuffer, &outputSize);
 
 			// Line ID of CDS : Frame : Sequence Header
 			fprintf(outputPtr, ">%lu:%lu:%s\n%.*s\n", currentLine, frameIdx, seq->name.s, (int) outputSize, outputBuffer);
@@ -489,7 +491,7 @@ int writeIndexTestProtein(const char * passPrefix, const char * passProName) {
 			currentCDS.strand = (frameIdx < 3 ? 1 : -1);
 			currentCDS.phase = 0;
 
-			convertToAA(seq->seq.s, &currentCDS, &outputBuffer, &outputSize);
+			convertToAA(seq->seq.s, &currentCDS, 0, &outputBuffer, &outputSize);
 
 			// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
 			fprintf(outputPtr, ">%lu:%lu:%d:%s\n%.*s\n", currentLine, frameIdx, gcCount, seq->name.s, (int) outputSize, outputBuffer);
@@ -516,7 +518,7 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 	FILE * outputProPtr, * outputNTPtr;
 	char * outputProBuffer, * outputNTName;
 	kseq_t * seq;
-	unsigned long seqIdx, outputSize, orfCount, orfTotal, orfIdx;
+	unsigned long seqIdx, transIdx, transTable, outputSize, orfCount, orfTotal, orfIdx;
 
 	// Check for incompatible combinations
 	if ((passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) && passOptions->indexInfo.multiFrame) {
@@ -544,27 +546,36 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
 	seq = kseq_init(inputSeqPtr);
 
 	while(kseq_read(seq) >= 0) {
-		// Search for ORFs
-		getSequenceORF(seq->seq.s, seq->seq.l, passOptions, &orfList, &orfCount);
+        transIdx = 0;
 
-		// Write out the corresponding protein sequence for each ORF
-		for (orfIdx = 0 ; orfIdx < orfCount ; orfIdx++) {
-			convertToAA(seq->seq.s, orfList+orfIdx, &outputProBuffer, &outputSize);
+        while((passOptions->translations)[transIdx++] != 0) {
+            // Lookup current translation table
+            transTable = (passOptions->translations)[transIdx - 1] - 1;
 
-			// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
-			fprintf(outputProPtr, ">%lu:%lu:%hd:%s\n%.*s\n", seqIdx, orfIdx, orfList[orfIdx].relFrame, seq->name.s, (int) outputSize, outputProBuffer);
-			free(outputProBuffer);
+            // Search for ORFs
+            getSequenceORF(seq->seq.s, seq->seq.l, transTable, passOptions, &orfList, &orfCount);
 
-			if (passOptions->proteinFlag & ALIGN_FLAG_GEN_NT) {
-				// Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
-				fprintf(outputNTPtr, ">%lu:%lu:%hd:%s\n%.*s\n", seqIdx, orfIdx, orfList[orfIdx].relFrame, seq->name.s, (int) (orfList[orfIdx].endIdx - orfList[orfIdx].startIdx + 1), seq->seq.s + orfList[orfIdx].startIdx);
+            // Write out the corresponding protein sequence for each ORF
+            for (orfIdx = 0 ; orfIdx < orfCount ; orfIdx++) {
+                convertToAA(seq->seq.s, orfList+orfIdx, transTable, &outputProBuffer, &outputSize);
 
-			}
-		}
+                // Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
+                fprintf(outputProPtr, ">%lu:%lu:%hd:%s\n%.*s\n", 
+                        seqIdx, orfIdx, transTable * 6 + orfList[orfIdx].relFrame, seq->name.s, (int) outputSize, outputProBuffer);
+                free(outputProBuffer);
 
-		free(orfList);
-		orfTotal += orfCount;
-		seqIdx++;
+                if (passOptions->proteinFlag & ALIGN_FLAG_GEN_NT) {
+                    // Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
+                    fprintf(outputNTPtr, ">%lu:%lu:%hd:%s\n%.*s\n", 
+                            seqIdx, orfIdx, transTable * 6 + orfList[orfIdx].relFrame, seq->name.s, (int) (orfList[orfIdx].endIdx - orfList[orfIdx].startIdx + 1), seq->seq.s + orfList[orfIdx].startIdx);
+
+                }
+            }
+
+            free(orfList);
+            orfTotal += orfCount;
+        }
+        seqIdx++;
 	}
 
 	// Close files

@@ -47,6 +47,7 @@ typedef struct {
 	IndexHeader indexInfo;	// reference, prep, and indexing info
 	int min_orf_len;		// minimum ORF length accepted during protein detection (as constant value)
 	float min_orf_percent;	// minimum orf length accepted during protein detection (as percent of read length)
+    int * translations;     // genetic code translation tables (NCBI codes) selected for alignment
 	int min_seed_len;       // minimum seed length
 	int min_chain_weight;
 	int max_chain_extend;

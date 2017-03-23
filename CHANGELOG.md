@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.4.0] - 2017-03-23
+### Added
+- Option to detect ORFs/translate/align across multiple non-standard genetic codes (-z option). Details of available translation codes may be found here: http://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi
+
 ## [1.3.2] - 2017-02-07
 ### Added
 - Alignment command can now directly take a protein multi-FASTA and skip ORF detection (-p option)
