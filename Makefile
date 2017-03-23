@@ -5,12 +5,11 @@ WRAP_MALLOC=-DUSE_MALLOC_WRAPPERS
 AR=			ar
 DFLAGS=		-DHAVE_PTHREAD $(WRAP_MALLOC)
 LOBJS=		utils.o kthread.o kstring.o ksw.o bwt.o bntseq.o bwa.o bwamem.o bwamem_pair.o bwamem_extra.o malloc_wrap.o
-AOBJS=		is.o bwtindex.o kopen.o align.o protein.o uniprot.o bwashm.o
+AOBJS=		is.o bwtindex.o kopen.o align.o translations.o protein.o uniprot.o bwashm.o
 PROG=		paladin
 INCLUDES=	
 LIBS=		-lm -lz -lpthread
 SUBDIRS=	.
-INSTALLDIR = /usr/local/bin
 
 ifeq ($(shell uname -s),Linux)
 	LIBS += -lrt
@@ -21,7 +20,7 @@ endif
 .c.o:
 		$(CC) -c $(CFLAGS) $(DFLAGS) $(INCLUDES) $< -o $@
 
-all:$(PROG) check
+all:$(PROG)
 
 paladin:libbwa.a $(AOBJS) main.o
 		$(CC) $(CFLAGS) $(DFLAGS) $(AOBJS) main.o -o $@ -L. -lbwa -lcurl $(LIBS)
@@ -34,13 +33,6 @@ clean:
 
 depend:
 	( LC_ALL=C ; export LC_ALL; makedepend -Y -- $(CFLAGS) $(DFLAGS) -- *.c )
-
-check:
-	cd sample_data && \
-	sh ./make_test.sh
-
-install:paladin
-	install -m 0755 paladin $(INSTALLDIR)
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
@@ -61,6 +53,7 @@ kstring.o: kstring.h malloc_wrap.h
 ksw.o: ksw.h malloc_wrap.h
 main.o: main.h kstring.h malloc_wrap.h utils.h
 malloc_wrap.o: malloc_wrap.h
-protein.o: protein.h utils.h kseq.h malloc_wrap.h khash.h
+protein.o: protein.h translations.h utils.h kseq.h malloc_wrap.h khash.h
+translations.o: translations.h 
 utils.o: utils.h ksort.h malloc_wrap.h kseq.h
 uniprot.o: uniprot.h
