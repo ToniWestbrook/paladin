@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.4.1] - 2017-04-17
+### Fixed
+- Corrected truncated translation code descriptions
+
 ## [1.4.0] - 2017-03-23
 ### Added
 - Option to detect ORFs/translate/align across multiple non-standard genetic codes (-z option). Details of available translation codes may be found here: http://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi
