@@ -12,7 +12,8 @@ RUN mkdir /usr/bin/paladin
 ADD . /usr/bin/paladin/
 RUN cd /usr/bin/paladin && \
     make && \
-    export PATH=$PATH:/usr/bin/paladin
+    ln -s /usr/bin/paladin/paladin /usr/local/bin/ && \
+    ln -s /usr/bin/paladin/run.py /usr/local/bin/
 
 # Test the installation
 RUN cd /usr/bin/paladin/sample_data && \
