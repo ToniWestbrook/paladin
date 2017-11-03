@@ -23,5 +23,4 @@ RUN cd /usr/bin/paladin && \
 RUN cd /usr/bin/paladin/sample_data && \
 	bash make_test.sh && \
 	cd /usr/bin/paladin && \
-	rm -r sample_data && \
-	paladin align -h
+	rm -r sample_data
