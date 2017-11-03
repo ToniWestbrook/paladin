@@ -77,12 +77,13 @@ def run_paladin(input_str,
     # Align the reads against the reference database
     logging.info("Aligning reads")
     output_prefix = os.path.join(temp_folder, read_prefix)
-    run_cmds(["paladin",
+    run_cmds(["/usr/bin/paladin/paladin",
+              "align",
               "-t", str(threads),          # Threads
               "-o", output_prefix,         # Output path
               "-u", "0",                   # Don't contact uniprot.org
               db_fp,                       # Database prefix
-              input_str])                  # FASTQ input
+              read_fp])                  # FASTQ input
     # Output path
     output_fp = os.path.join(temp_folder, read_prefix + "_uniprot.tsv")
     assert os.path.exists(output_fp)
@@ -189,8 +190,15 @@ def get_sra(accession, temp_folder):
 def get_reads_from_url(input_str, temp_folder):
     """Get a set of reads from a URL -- return the downloaded filepath and file prefix."""
     logging.info("Getting reads from {}".format(input_str))
-    error_msg = "{} must start with s3://, sra://, or ftp://".format(input_str)
-    assert input_str.startswith(('s3://', 'sra://', 'ftp://')), error_msg
+
+    if input_str.startswith(('s3://', 'sra://', 'ftp://')) is False:
+        logging.info("Path does not start with s3://, sra://, or ftp://")
+
+        # Check that the path exists locally
+        assert os.path.exists(input_str), "Path does not exist locally"
+        logging.info("{} is a valid local path".format(input_str))
+        # Return the input string as the valid local path
+        return input_str
 
     filename = input_str.split('/')[-1]
     local_path = os.path.join(temp_folder, filename)
@@ -256,46 +264,20 @@ def get_reference_database(ref_db, temp_folder):
         logging.info("Getting reference database from local path: " + ref_db)
         assert os.path.exists(ref_db)
 
+        # Get the prefix for the database
+        local_fp = None
+        for fp in os.listdir(ref_db):
+            if fp.endswith(".pro"):
+                prefix = fp[:-4]
+                local_fp = os.path.join(ref_db, prefix)
+        msg = "No Paladin database could be found in " + ref_db
+        assert local_fp is not None, msg
+        logging.info("Prefix for reference database is {}".format(ref_db))
+
         # Don't delete this database when finished
         delete_db_when_finished = False
 
-        return ref_db, delete_db_when_finished
-
-
-def align_reads(read_fp,
-                db_fp,
-                blast_fp,
-                threads=16,
-                evalue=0.00001,
-                blocks=1,
-                query_gencode=11):
-    """Align the reads against the reference database."""
-    run_cmds(["diamond",
-              "blastx",
-              "--threads",
-              str(threads),
-              "--query",
-              read_fp,
-              "--db",
-              db_fp,
-              "--outfmt",
-              "6",
-              "qseqid",
-              "sseqid",
-              "slen",
-              "sstart",
-              "send",
-              "qseq",
-              "--out",
-              blast_fp,
-              "--top",
-              "0",
-              "--evalue",
-              str(evalue),
-              "-b",
-              str(blocks),
-              "--query-gencode",
-              str(query_gencode)])
+        return local_fp, delete_db_when_finished
 
 
 def return_results(out, read_prefix, output_folder, temp_folder):
@@ -310,7 +292,7 @@ def return_results(out, read_prefix, output_folder, temp_folder):
 
     if output_folder.startswith('s3://'):
         # Copy to S3
-        run_cmds(['aws', 's3', 'cp', '--quiet', '--sse', 'AES256', 
+        run_cmds(['aws', 's3', 'cp', '--quiet', '--sse', 'AES256',
                   temp_fp, output_folder])
     else:
         # Copy to local folder
@@ -344,19 +326,6 @@ if __name__ == "__main__":
                         type=int,
                         default=None,
                         help="If specified, create a ramdisk of this size (Gb).")
-    parser.add_argument("--evalue",
-                        type=float,
-                        default=0.00001,
-                        help="E-value used to filter alignments.")
-    parser.add_argument("--blocks",
-                        type=int,
-                        default=5,
-                        help="""Number of blocks used when aligning.
-                              Value relates to the amount of memory used.""")
-    parser.add_argument("--query-gencode",
-                        type=int,
-                        default=11,
-                        help="Genetic code used to translate nucleotide reads.")
     parser.add_argument("--threads",
                         type=int,
                         default=16,
@@ -395,15 +364,12 @@ if __name__ == "__main__":
     # Align each of the inputs and calculate the overall abundance
     for input_str in args.input.split(','):
         logging.info("Processing input argument: " + input_str)
-        calc_abund(input_str,              # ID for single sample to process
-                   db_fp,                  # Local path to DB
-                   args.ref_db,            # URL of ref DB, used for logging
-                   args.output_folder,     # Place to put results
-                   evalue=args.evalue,
-                   blocks=args.blocks,
-                   query_gencode=args.query_gencode,
-                   threads=args.threads,
-                   temp_folder=args.temp_folder)
+        run_paladin(input_str,              # ID for single sample to process
+                    db_fp,                  # Local path to DB
+                    args.ref_db,            # URL of ref DB, used for logging
+                    args.output_folder,     # Place to put results
+                    threads=args.threads,
+                    temp_folder=args.temp_folder)
 
     # Delete the reference database
     if delete_db_when_finished:

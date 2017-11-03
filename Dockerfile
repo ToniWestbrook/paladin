@@ -5,7 +5,11 @@ MAINTAINER sminot@fredhutch.org
 RUN apt update && \
 	apt-get install -y libcurl4-openssl-dev git make gcc \
 					   zlib1g-dev wget unzip python2.7 \
-					   python-dev python-pip bats awscli curl
+					   python-dev python-pip bats awscli curl && \
+	pip install boto3==1.4.7
+
+# Set the default langage to C
+ENV LC_ALL C
 
 # Import the repo to /usr/bin/paladin
 RUN mkdir /usr/bin/paladin
@@ -19,4 +23,5 @@ RUN cd /usr/bin/paladin && \
 RUN cd /usr/bin/paladin/sample_data && \
 	bash make_test.sh && \
 	cd /usr/bin/paladin && \
-	rm -r sample_data
+	rm -r sample_data && \
+	paladin align -h
