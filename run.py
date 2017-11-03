@@ -5,6 +5,7 @@ import os
 import json
 import uuid
 import boto3
+import shutil
 import logging
 import argparse
 import subprocess
@@ -89,12 +90,16 @@ def run_paladin(input_str,
     assert os.path.exists(output_fp)
 
     # Parse the alignment to get the abundance summary statistics
-    logging.info("Parsing the output")
+    logging.info("Parsing the output ({})".format(output_fp))
     paladin_results = parse_tsv(output_fp)
 
     # Clean up the output and FASTQ
     os.unlink(output_fp)
-    os.unlink(read_fp)
+    # Don't delete local files
+    if any([input_str.startswith("sra://"),
+            input_str.startswith("s3://"),
+            input_str.startswith("ftp://")]):
+        os.unlink(read_fp)
 
     # Read in the logs
     logging.info("Reading in the logs")
@@ -121,7 +126,8 @@ def parse_tsv(fp):
         header = f.readline().rstrip("\n").split("\t")
         for line in f:
             line = line.rstrip("\n").split("\t")
-            if len(line) == 0:
+            # Skip empty lines
+            if len(line) == 1:
                 continue
             assert len(line) == len(header)
             dat.append(dict(zip(header, line)))
@@ -358,7 +364,8 @@ if __name__ == "__main__":
         make_scratch_space(args.scratch_size, args.temp_folder)
 
     # Get the reference database
-    db_fp, delete_db_when_finished = get_reference_database(args.ref_db, args.temp_folder)
+    db_fp, delete_db_when_finished = get_reference_database(args.ref_db,
+                                                            args.temp_folder)
     logging.info("Reference database: " + db_fp)
 
     # Align each of the inputs and calculate the overall abundance
@@ -373,8 +380,8 @@ if __name__ == "__main__":
 
     # Delete the reference database
     if delete_db_when_finished:
-        logging.info("Deleting reference database: {}.dmnd".format(db_fp))
-        os.unlink(db_fp + ".dmnd")
+        logging.info("Deleting reference database: {}".format(db_fp))
+        shutil.rmtree(db_fp)
 
     # Stop logging
     logging.info("Done")
