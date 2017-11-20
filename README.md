@@ -25,6 +25,12 @@ make
 PATH=$PATH:$(pwd)
 ```
 
+**Docker**
+
+Alternatively, you can use Paladin with the Docker image hosted at [https://quay.io/repository/fhcrc-microbiome/paladin](https://quay.io/repository/fhcrc-microbiome/paladin). This image can be downloaded with the command `docker pull quay.io/fhcrc-microbiome/paladin`. A set of tags are used to pin releases, e.g. `v1.4.0--1` is the image pinned to the `v1.4.0` version of Paladin. 
+
+[![Docker Repository on Quay](https://quay.io/repository/fhcrc-microbiome/paladin/status "Docker Repository on Quay")](https://quay.io/repository/fhcrc-microbiome/paladin)
+
 SAMPLE COMMANDS
 --
 
@@ -69,6 +75,10 @@ paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 
 #look at report file, SAM, etc.
 ```
+
+**Wrapper script**
+
+This repo also contains a wrapper script (`run.py`) which is intended to make it easier to deploy Paladin on cloud or HPC computing resources (e.g. Slurm or AWS). The script is located in the PATH in the Docker image, and so you can run `run.py -h` to see the set of options for this script. In brief, users can specify the input URL, reference database path, and output folder location (any of which may be local paths, S3 buckets, or FTP). The run script will fetch the input data, run Paladin, wrap up the results into a single JSON output file, and copy the results to the specified output folder. 
 
 OUTPUT
 --
