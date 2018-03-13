@@ -89,7 +89,7 @@ OUTPUT
 **Note: Be sure to filter your results by the maximum mapping quality.**  Though an ORF may successfully map to a protein/cluster, this does not indicate how likely this is a correct mapping.  Without filtering, the SAM/TSV files will include may entries that are likely noise.  A high maximum mapping quality indicates at least one ORF mapped with high confidence to the reported protein/cluster.
 
 ```
-#TSV FORMAT
+TSV FORMAT
 
 Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
 ```
