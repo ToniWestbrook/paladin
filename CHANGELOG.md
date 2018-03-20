@@ -1,5 +1,10 @@
 # Change Log
 
+## [1.4.2] - 2018-03-20
+### Fixed
+- Corrected issue that sometimes caused PALADIN to hang when downloading data from UniProt
+- Corrected ability to recover from UniProt server errors
+
 ## [1.4.1] - 2017-04-17
 ### Fixed
 - Corrected truncated translation code descriptions
