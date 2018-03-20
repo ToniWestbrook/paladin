@@ -25,6 +25,12 @@ make
 PATH=$PATH:$(pwd)
 ```
 
+**Docker**
+
+Alternatively, you can use Paladin with the Docker image hosted at [https://quay.io/repository/fhcrc-microbiome/paladin](https://quay.io/repository/fhcrc-microbiome/paladin). This image can be downloaded with the command `docker pull quay.io/fhcrc-microbiome/paladin`. A set of tags are used to pin releases, e.g. `v1.4.0--1` is the image pinned to the `v1.4.0` version of Paladin. 
+
+[![Docker Repository on Quay](https://quay.io/repository/fhcrc-microbiome/paladin/status "Docker Repository on Quay")](https://quay.io/repository/fhcrc-microbiome/paladin)
+
 SAMPLE COMMANDS
 --
 
@@ -70,14 +76,20 @@ paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 #look at report file, SAM, etc.
 ```
 
+**Wrapper script**
+
+This repo also contains a wrapper script (`run.py`) which is intended to make it easier to deploy Paladin on cloud or HPC computing resources (e.g. Slurm or AWS). The script is located in the PATH in the Docker image, and so you can run `run.py -h` to see the set of options for this script. In brief, users can specify the input URL, reference database path, and output folder location (any of which may be local paths, S3 buckets, or FTP). The run script will fetch the input data, run Paladin, wrap up the results into a single JSON output file, and copy the results to the specified output folder. 
+
 OUTPUT
 --
 
 1. A SAM/BAM file that can be used for any downstream analyses.
 2. A tab delimited UniProt report file.
 
+**Note: Be sure to filter your results by the maximum mapping quality.**  Though an ORF may successfully map to a protein/cluster, this does not indicate how likely this is a correct mapping.  Without filtering, the SAM/TSV files will include may entries that are likely noise.  A high maximum mapping quality indicates at least one ORF mapped with high confidence to the reported protein/cluster.
+
 ```
-#FORMAT
+TSV FORMAT
 
 Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
 ```
@@ -93,14 +105,13 @@ Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	
 - Genes
 - Pathway	Features
 - Gene Ontology
-- Reviewd
+- Reviewed
 - Existence
 - Comments
 - Cross Reference (KEGG): Corresponding entry in KEGG database (http://www.genome.jp/kegg/)
 - Cross Reference (GeneID): Corresponding entry in NCBI gene database (http://www.ncbi.nlm.nih.gov/gene)
 - Cross Reference (PATRIC): Corresponding entry in PATRIC database (http://www.patricbrc.org)
 - Cross Reference (EnsemblBacteria): Corresponding entry in Ensembl Bacteria database (http://bacteria.ensembl.org)
-
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
 
