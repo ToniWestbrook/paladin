@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.4.3] - 2018-07-25
+### Changed
+- Changed all web requests from HTTP to HTTPS to accommodate UniProt's new requirements
+
 ## [1.4.2] - 2018-03-20
 ### Fixed
 - Corrected issue that sometimes caused PALADIN to hang when downloading data from UniProt

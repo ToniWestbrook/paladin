@@ -267,7 +267,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const
             logMessage(__func__, LOG_LEVEL_MESSAGE, "Submitted %d of %d entries to UniProt...\n", entryIdx, passList->entryCount);
 
 			// Stage 1 - Submit query for processing
-			curl_easy_setopt(curlHandle, CURLOPT_URL, "http://www.uniprot.org/uploadlists/");
+			curl_easy_setopt(curlHandle, CURLOPT_URL, "https://www.uniprot.org/uploadlists/");
 			curl_easy_setopt(curlHandle, CURLOPT_POSTFIELDS, queryString);
 			curl_easy_setopt(curlHandle, CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, receiveUniprotOutput);
@@ -288,7 +288,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const
 				continue;
 			}
 			sprintf(jobID, "%s", tempBuffer.buffer);
-			sprintf(queryString, "http://www.uniprot.org/jobs/%s.stat", jobID);
+			sprintf(queryString, "https://www.uniprot.org/jobs/%s.stat", jobID);
 
 			resetCURLBuffer(&tempBuffer);
 			curl_easy_setopt(curlHandle, CURLOPT_URL, queryString);
@@ -312,7 +312,7 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const
 
 			// Stage 3 - Retrieve Results
 			sprintf(queryString, "query=job:%s&format=tab&columns=entry%%20name,id,organism,protein%%20names,genes,pathway,features,go,reviewed,existence,comments,database(KEGG),database(GeneID),database(PATRIC),database(EnsemblBacteria)", jobID);
-			curl_easy_setopt(curlHandle, CURLOPT_URL, "http://www.uniprot.org/uniprot/");
+			curl_easy_setopt(curlHandle, CURLOPT_URL, "https://www.uniprot.org/uniprot/");
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, retBuffer);
 
 			curlResult = curl_easy_perform(curlHandle);
