@@ -42,7 +42,7 @@ Download and prepare UniProt UniRef90 index files.
 ```
 paladin prepare -r2 
 ```
-Index UniProt (or another protein) fasta, if not using the automated `prepare` command
+Index UniProt (or another protein) fasta. (See [here](#prepare-index) for an explanation of `prepare` vs `index`)
 ```
 paladin index -r3 uniprot_sprot.fasta.gz
 ```
@@ -77,6 +77,7 @@ paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 ```
 
 **Prepare vs Index**
+<a name="prepare-index"></a>
 
 All references must be initially indexed via either the `prepare` or `index` commands before use with PALADIN.
 
