@@ -122,9 +122,9 @@ Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	
 - Cross Reference (PATRIC): Corresponding entry in PATRIC database (http://www.patricbrc.org)
 - Cross Reference (EnsemblBacteria): Corresponding entry in Ensembl Bacteria database (http://bacteria.ensembl.org)
 
-PALADIN-Plugins
+PALADIN-plugins
 --
-A number of preparation and downstream analysis tools are available via the PALADIN-Plugins package.  This includes HPC MPI support, customized UniProt reports, taxonomic analysis, GO term analysis, etc.  PALADIN-Plugins can be found [here](https://github.com/twestbrookunh/paladin-plugins/).
+A number of preparation and downstream analysis tools are available via the PALADIN-plugins package.  This includes HPC MPI support, customized UniProt reports, taxonomic analysis, GO term analysis, etc.  PALADIN-plugins can be found [here](https://github.com/twestbrookunh/paladin-plugins/).
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
 
