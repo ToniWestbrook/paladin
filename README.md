@@ -76,6 +76,14 @@ paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 #look at report file, SAM, etc.
 ```
 
+**Prepare vs Index**
+
+All references must be initially indexed via either the `prepare` or `index` commands before use with PALADIN.
+
+The `prepare` command must be run for all UniProt or UniProt formatted references, and is necessary if you wish PALADIN to generate the TSV UniProt characterization report during alignment.  The `prepare` command will download and index the Swiss-Prot or UniRef90 protein databases by default, or you may specify a local, custom reference formatted using the `>sp|AccID|KBID` header format of the Swiss-Prot database, using valid UniProt KBIDs.
+
+If you do not require the TSV file during alignment, and only wish to generate SAM alignment data, the `index` command is sufficient to index the reference.  References indexed via the `index` command do not need to adhere to the UniProt format.  References indexed via the `index` command may later be upgraded to fully prepared references using `prepare`, as long as they adhere to the UniProt header format.
+
 **Wrapper script**
 
 This repo also contains a wrapper script (`run.py`) which is intended to make it easier to deploy Paladin on cloud or HPC computing resources (e.g. Slurm or AWS). The script is located in the PATH in the Docker image, and so you can run `run.py -h` to see the set of options for this script. In brief, users can specify the input URL, reference database path, and output folder location (any of which may be local paths, S3 buckets, or FTP). The run script will fetch the input data, run Paladin, wrap up the results into a single JSON output file, and copy the results to the specified output folder. 
