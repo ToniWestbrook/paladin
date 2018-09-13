@@ -42,7 +42,7 @@ Download and prepare UniProt UniRef90 index files.
 ```
 paladin prepare -r2 
 ```
-Index UniProt (or another protein) fasta, if not using the automated `prepare` command
+Index UniProt (or another protein) fasta. (See [here](#prepare-index) for an explanation of `prepare` vs `index`)
 ```
 paladin index -r3 uniprot_sprot.fasta.gz
 ```
@@ -75,6 +75,15 @@ paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 
 #look at report file, SAM, etc.
 ```
+
+**Prepare vs Index**
+<a name="prepare-index"></a>
+
+All references must be initially indexed via either the `prepare` or `index` commands before use with PALADIN.
+
+The `prepare` command must be run for all UniProt or UniProt formatted references, and is necessary if you wish PALADIN to generate the TSV UniProt characterization report during alignment.  The `prepare` command will download and index the Swiss-Prot or UniRef90 protein databases by default, or you may specify a local, custom reference formatted using the `>sp|AccID|KBID` header format of the Swiss-Prot database, using valid UniProt KBIDs.
+
+If you do not require the TSV file during alignment, and only wish to generate SAM alignment data, the `index` command is sufficient to index the reference.  References indexed via the `index` command do not need to adhere to the UniProt format.  References indexed via the `index` command may later be upgraded to fully prepared references using `prepare`, as long as they adhere to the UniProt header format.
 
 **Wrapper script**
 
@@ -112,6 +121,10 @@ Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	
 - Cross Reference (GeneID): Corresponding entry in NCBI gene database (http://www.ncbi.nlm.nih.gov/gene)
 - Cross Reference (PATRIC): Corresponding entry in PATRIC database (http://www.patricbrc.org)
 - Cross Reference (EnsemblBacteria): Corresponding entry in Ensembl Bacteria database (http://bacteria.ensembl.org)
+
+PALADIN-plugins
+--
+A number of preparation and downstream analysis tools are available via the PALADIN-plugins package.  This includes HPC MPI support, customized UniProt reports, taxonomic analysis, GO term analysis, etc.  PALADIN-plugins can be found [here](https://github.com/twestbrookunh/paladin-plugins/).
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
 
