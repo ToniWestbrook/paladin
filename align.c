@@ -355,7 +355,7 @@ int command_align(int argc, char *argv[]) {
 
     if (opt->proteinFlag & ALIGN_FLAG_MANUAL_PRO) {
         // Protein input given, skip ORF detection
-        sprintf(readsProName, argv[optind + 1]);
+        sprintf(readsProName, "%s", argv[optind + 1]);
     }
     else {
         // Detect ORFs and write protein file

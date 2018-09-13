@@ -100,7 +100,7 @@ void renderTranslations() {
            "Details may be found at http://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi\n\n"); 
 
     for (transIdx = 0 ; transIdx < TRANSLATION_COUNT ; transIdx++) {
-        if ((transName = translationNames[transIdx])[0] != 0) {
+        if ((transName = (char *) translationNames[transIdx])[0] != 0) {
             printf("%d. %s\n", transIdx + 1, transName); 
         }
     }

@@ -560,13 +560,13 @@ int writeReadsProtein(const char * passPrefix, const char * passProName, mem_opt
                 convertToAA(seq->seq.s, orfList+orfIdx, transTable, &outputProBuffer, &outputSize);
 
                 // Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
-                fprintf(outputProPtr, ">%lu:%lu:%hd:%s\n%.*s\n", 
+                fprintf(outputProPtr, ">%lu:%lu:%lu:%s\n%.*s\n", 
                         seqIdx, orfIdx, transTable * 6 + orfList[orfIdx].relFrame, seq->name.s, (int) outputSize, outputProBuffer);
                 free(outputProBuffer);
 
                 if (passOptions->proteinFlag & ALIGN_FLAG_GEN_NT) {
                     // Sequence ID : ORF Index per Sequence : Relative Frame per Sequence : Sequence Header
-                    fprintf(outputNTPtr, ">%lu:%lu:%hd:%s\n%.*s\n", 
+                    fprintf(outputNTPtr, ">%lu:%lu:%lu:%s\n%.*s\n", 
                             seqIdx, orfIdx, transTable * 6 + orfList[orfIdx].relFrame, seq->name.s, (int) (orfList[orfIdx].endIdx - orfList[orfIdx].startIdx + 1), seq->seq.s + orfList[orfIdx].startIdx);
 
                 }
