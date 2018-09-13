@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.4.4] - 2018-09-12
+### Fixed
+- Corrected issues causing compiler warnings
+
 ## [1.4.3] - 2018-07-25
 ### Changed
 - Changed all web requests from HTTP to HTTPS to accommodate UniProt's new requirements
