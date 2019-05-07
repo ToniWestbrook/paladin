@@ -6,7 +6,7 @@
 
 #include "bwamem.h"
 
-#define UNIPROT_MAX_SUBMIT 10000
+#define UNIPROT_MAX_SUBMIT 5000
 #define UNIPROT_MAX_ERROR 5
 #define UNIPROT_BUFFER_GROW 50000000
 

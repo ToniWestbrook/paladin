@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.4.5] - 2019-05-07
+### Changed
+- Changed UniProt web request batch size to 5000 entries to reduce chances of server timeout
+
 ## [1.4.4] - 2018-09-12
 ### Fixed
 - Corrected issues causing compiler warnings
