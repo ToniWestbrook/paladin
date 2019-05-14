@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.4.6] - 2019-05-07
+### Fixed
+- Web request retries now work properly
+
+### Added
+- Taxonomic ID and Lineage to UniProt report
+
 ## [1.4.5] - 2019-05-07
 ### Changed
 - Changed UniProt web request batch size to 5000 entries to reduce chances of server timeout
