@@ -22,7 +22,6 @@ INSTALLATION
 git clone https://github.com/twestbrookunh/paladin.git
 cd paladin/
 make
-PATH=$PATH:$(pwd)
 ```
 
 **Docker**
