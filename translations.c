@@ -32,7 +32,7 @@ unsigned char codon_aa_hash[][64] = {
 	{'K', 'N', 'K', 'N', 'T', 'T', 'T', 'T', 'R', 'S', 'R', 'S', 'I', 'I', 'M', 'I', 'Q', 'H', 'Q', 'H', 'P', 'P', 'P', 'P', 'R', 'R', 'R', 'R', 'L', 'L', 'L', 'L', 'E', 'D', 'E', 'D', 'A', 'A', 'A', 'A', 'G', 'G', 'G', 'G', 'V', 'V', 'V', 'V', '*', 'Y', '*', 'Y', 'S', 'S', 'S', 'S', 'G', 'C', 'W', 'C', 'L', 'F', 'L', 'F'}
 };
 
-const char * translationNames[] = {"Standard", "Vertebrate", "Yeast", "Mold", "Invertebrate", "Ciliate", "", "", "Echinoderm", "Euplotid", "Bacterial,", "Alternative", "Ascidian", "Alternative", "Blepharisma", "Chlorophycean", "", "", "", "", "Trematode", "Scenedesmus", "Thraustochytrium", "Pterobranchia", "Candidate"};
+const char * translationNames[] = {"Standard", "Vertebrate Mitochondrial", "Yeast Mitochondrial", "Mold Mitochondrial; Protozoan Mitochondrial; Coelenterate Mitochondrial; Mycoplasma; Spiroplasma", "Invertebrate Mitochondrial", "Ciliate Nuclear; Dasycladacean Nuclear; Hexamita Nuclear", "", "", "Echinoderm Mitochondrial; Flatworm Mitochondrial", "Euplotid Nuclear", "Bacterial, Archaeal and Plant Plastid", "Alternative Yeast Nuclear", "Ascidian Mitochondrial", "Alternative Flatworm Mitochondrial", "Blepharisma Macronuclear", "Chlorophycean Mitochondrial", "", "", "", "", "Trematode Mitochondrial", "Scenedesmus obliquus Mitochondrial", "Thraustochytrium Mitochondrial", "Pterobranchia Mitochondrial", "Candidate Division SR1 and Gracilibacteria"};
 
 // Convert command line comma delimited translation string into int array
 int * convertTransArgs(const char * passArguments) {
@@ -100,7 +100,7 @@ void renderTranslations() {
            "Details may be found at http://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi\n\n"); 
 
     for (transIdx = 0 ; transIdx < TRANSLATION_COUNT ; transIdx++) {
-        if ((transName = translationNames[transIdx])[0] != 0) {
+        if ((transName = (char *) translationNames[transIdx])[0] != 0) {
             printf("%d. %s\n", transIdx + 1, transName); 
         }
     }

@@ -1,5 +1,38 @@
 # Change Log
 
+## [1.5.0] - 2022-11-18
+### Changed
+- Updated PALADIN to use UniProt's new API system
+- Comments field in UniProt report now reports general function of protein (cc_function) and not just comment counts
+
+## [1.4.6] - 2019-05-07
+### Fixed
+- Web request retries now work properly
+
+### Added
+- Taxonomic ID and Lineage to UniProt report
+
+## [1.4.5] - 2019-05-07
+### Changed
+- Changed UniProt web request batch size to 5000 entries to reduce chances of server timeout
+
+## [1.4.4] - 2018-09-12
+### Fixed
+- Corrected issues causing compiler warnings
+
+## [1.4.3] - 2018-07-25
+### Changed
+- Changed all web requests from HTTP to HTTPS to accommodate UniProt's new requirements
+
+## [1.4.2] - 2018-03-20
+### Fixed
+- Corrected issue that sometimes caused PALADIN to hang when downloading data from UniProt
+- Corrected ability to recover from UniProt server errors
+
+## [1.4.1] - 2017-04-17
+### Fixed
+- Corrected truncated translation code descriptions
+
 ## [1.4.0] - 2017-03-23
 ### Added
 - Option to detect ORFs/translate/align across multiple non-standard genetic codes (-z option). Details of available translation codes may be found here: http://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi

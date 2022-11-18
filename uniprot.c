@@ -87,7 +87,7 @@ void renderUniprotReport(int passType, int passPrimary, FILE * passStream, const
 		break;
 
 	case OUTPUT_TYPE_UNIPROT_FULL:
-		fprintf(passStream, "%s\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\n", commonHeader);
+		fprintf(passStream, "%s\tUniProtKB\tID\tOrganism\tProtein Names\tGenes\tPathway\tFeatures\tGene Ontology\tReviewed\tExistence\tComments\tCross Reference (KEGG)\tCross Reference (GeneID)\tCross Reference (PATRIC)\tCross Reference(EnsemblBacteria)\tTaxonomic ID\tLineage\n", commonHeader);
 		renderUniprotEntries(uniprotLists + UNIPROT_LIST_FULL, UNIPROT_LIST_FULL, passStream);
 		freeCURLBuffer(&tempBuffer);
 
@@ -142,7 +142,7 @@ void cleanUniprotReferenceUniref(const char * passName, int passANN) {
 	FILE * dstANNHandle;
 	int searchIdx, searchIdx2, lineIdx;
 	char * newName;
-	char srcBuffer[4096], dstBuffer[4096];
+	char srcBuffer[4096], dstBuffer[16384];
 	char target[] = "RepID=";
 
 	// Prepare and open reference and temporary destination
@@ -233,10 +233,12 @@ const char * downloadUniprotReference(int passReference, const char * passProxy)
 
 void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const char * passProxy) {
 	int entryIdx, queryIdx, parseIdx, errorIdx, queryCount;
+    long unsigned int jobSize;
 	CURL * curlHandle;
 	CURLcode curlResult;
 	CURLBuffer tempBuffer;
-	char queryString[UNIPROT_MAX_SUBMIT * 50], jobID[50];
+	char queryString[UNIPROT_MAX_SUBMIT * 50], buildString[UNIPROT_MAX_SUBMIT * 50], jobID[50];
+    char url[1024];
 	char * httpString;
 
 	// Init structures
@@ -246,28 +248,29 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const
 	queryCount = (passList->entryCount < UNIPROT_MAX_SUBMIT) ? passList->entryCount : UNIPROT_MAX_SUBMIT;
 
 	for (entryIdx = 0 ; entryIdx < passList->entryCount ; ) {
-		// Build query string
-		queryString[0] = 0;
-		for (queryIdx = 0 ; (queryIdx < queryCount) && (entryIdx < passList->entryCount) ; entryIdx++) {
-			for (parseIdx = 0 ; parseIdx < strlen(passList->entries[entryIdx].id) ; parseIdx++) {
-				sprintf(queryString, "%s%s ", queryString, passList->entries[entryIdx].id);
-				queryIdx++;
-				break;
-			}
-		}
+        // Preparation - build and sanitize query string outside of error loop 
+        queryString[0] = 0;
+        for (queryIdx = 0 ; (queryIdx < queryCount) && (entryIdx < passList->entryCount) ; entryIdx++) {
+            for (parseIdx = 0 ; parseIdx < strlen(passList->entries[entryIdx].id) ; parseIdx++) {
+                sprintf(buildString, "%s%s ", queryString, passList->entries[entryIdx].id);
+                sprintf(queryString, "%s", buildString);
+                queryIdx++;
+                break;
+            }
+        }
 
-		httpString = curl_easy_escape(curlHandle, queryString, 0);
-		sprintf(queryString, "uploadQuery=%s&format=job&from=ACC+ID&to=ACC&landingPage=false", httpString);
-		curl_free(httpString);
-
-		logMessage(__func__, LOG_LEVEL_MESSAGE, "Submitted %d of %d entries to UniProt...\n", entryIdx, passList->entryCount);
+        httpString = curl_easy_escape(curlHandle, queryString, 0);
+        sprintf(queryString, "ids=%s&from=UniProtKB_AC-ID&to=UniProtKB", httpString);
+        curl_free(httpString);
 
 		// Restart a limited number of times if errors encountered
 		for (errorIdx = 0 ; errorIdx < UNIPROT_MAX_ERROR ; errorIdx++) {
-			// Stage 1 - Submit query for processing
-			curl_easy_setopt(curlHandle, CURLOPT_URL, "http://www.uniprot.org/uploadlists/");
+            // Stage 1 - Submit query for processing
+            logMessage(__func__, LOG_LEVEL_MESSAGE, "Submitting %d of %d entries to UniProt...\n", entryIdx, passList->entryCount);
+
+			curl_easy_setopt(curlHandle, CURLOPT_URL, "https://rest.uniprot.org/idmapping/run");
 			curl_easy_setopt(curlHandle, CURLOPT_POSTFIELDS, queryString);
-			curl_easy_setopt(curlHandle, CURLOPT_FOLLOWLOCATION, 1L);
+			curl_easy_setopt(curlHandle, CURLOPT_FOLLOWLOCATION, 0L);
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, receiveUniprotOutput);
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &tempBuffer);
             if (passProxy) curl_easy_setopt(curlHandle, CURLOPT_PROXY, passProxy);
@@ -276,22 +279,32 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const
 			curlResult = curl_easy_perform(curlHandle);
 
 			if (curlResult != CURLE_OK) {
-				logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
+				logMessage(__func__, LOG_LEVEL_ERROR, "CURL: %s (retrying)\n", curl_easy_strerror(curlResult));
 				continue;
 			}
+
+            if (strncmp(tempBuffer.buffer, "{\"jobId\":", 9) != 0) {
+				logMessage(__func__, LOG_LEVEL_ERROR, "Received unexpected job ID response (retrying)\n");
+				continue;
+            }
 
 			// Stage 2 - Wait for results
-			if (tempBuffer.size >= 50) {
-				logMessage(__func__, LOG_LEVEL_ERROR, "Received unexpected job ID size\n");
+            jobSize = strnlen(tempBuffer.buffer, 8192) - 12;
+
+            if (jobSize > 49) {
+				logMessage(__func__, LOG_LEVEL_ERROR, "Received unexpected job ID size (retrying)\n");
 				continue;
-			}
-			sprintf(jobID, "%s", tempBuffer.buffer);
-			sprintf(queryString, "http://www.uniprot.org/jobs/%s.stat", jobID);
+            }
+
+			strncpy(jobID, tempBuffer.buffer + 10, jobSize);
+			sprintf(url, "https://rest.uniprot.org/idmapping/status/%s", jobID);
+            queryString[0] = '\0';
 
 			resetCURLBuffer(&tempBuffer);
-			curl_easy_setopt(curlHandle, CURLOPT_URL, queryString);
+			curl_easy_setopt(curlHandle, CURLOPT_URL, url);
+            curl_easy_setopt(curlHandle, CURLOPT_HTTPGET, 1l);
 
-			while (strcmp(tempBuffer.buffer, "COMPLETED") != 0) {
+			while (strcmp(tempBuffer.buffer, "{\"jobStatus\":\"FINISHED\"}") != 0) {
 				sleep(1);
 				resetCURLBuffer(&tempBuffer);
 				curlResult = curl_easy_perform(curlHandle);
@@ -299,24 +312,31 @@ void retrieveUniprotOnline(UniprotList * passList, CURLBuffer * retBuffer, const
 			}
 
 			if (curlResult != CURLE_OK) {
-				logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
+				logMessage(__func__, LOG_LEVEL_ERROR, "CURL: %s (retrying)\n", curl_easy_strerror(curlResult));
 				continue;
 			}
 
 			// Stage 3 - Retrieve Results
-			sprintf(queryString, "query=job:%s&format=tab&columns=entry%%20name,id,organism,protein%%20names,genes,pathway,features,go,reviewed,existence,comments,database(KEGG),database(GeneID),database(PATRIC),database(EnsemblBacteria)", jobID);
-			curl_easy_setopt(curlHandle, CURLOPT_URL, "http://www.uniprot.org/uniprot/");
+			sprintf(queryString, "format=tsv&fields=accession,organism_name,protein_name,gene_names,cc_pathway,feature_count,go,reviewed,protein_existence,cc_function,xref_kegg,xref_geneid,xref_patric,xref_ensemblbacteria,organism_id,lineage");
+			sprintf(url, "https://rest.uniprot.org/idmapping/uniprotkb/results/stream/%s?%s", jobID, queryString);
+			curl_easy_setopt(curlHandle, CURLOPT_URL, url);
 			curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, retBuffer);
 
 			curlResult = curl_easy_perform(curlHandle);
 
 			if (curlResult != CURLE_OK) {
-				logMessage(__func__, LOG_LEVEL_ERROR, "%s\n", curl_easy_strerror(curlResult));
+				logMessage(__func__, LOG_LEVEL_ERROR, "CURL: %s\n", curl_easy_strerror(curlResult));
 				continue;
 			}
 
 			break;
 		}
+
+        // Check if download failed max number of times
+        if (errorIdx == UNIPROT_MAX_ERROR) {
+            logMessage(__func__, LOG_LEVEL_ERROR, "Download failed after multiple retries.  Please check Internet connection and finalize with PALADIN-plugins\n");
+            break;
+        }
 	}
 
 	curl_easy_cleanup(curlHandle);

@@ -21,7 +21,7 @@ typedef struct {
 	short strand;
 	short phase;
 	short relFrame;
-	char description[5000];
+	char description[GFF_MAX_FIELD];
 } CDS;
 
 // Encoding
