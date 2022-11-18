@@ -22,8 +22,13 @@ INSTALLATION
 git clone https://github.com/twestbrookunh/paladin.git
 cd paladin/
 make
-PATH=$PATH:$(pwd)
 ```
+
+**Docker**
+
+Alternatively, you can use Paladin with the Docker image hosted at [https://quay.io/repository/fhcrc-microbiome/paladin](https://quay.io/repository/fhcrc-microbiome/paladin). This image can be downloaded with the command `docker pull quay.io/fhcrc-microbiome/paladin`. A set of tags are used to pin releases, e.g. `v1.4.0--1` is the image pinned to the `v1.4.0` version of Paladin. 
+
+[![Docker Repository on Quay](https://quay.io/repository/fhcrc-microbiome/paladin/status "Docker Repository on Quay")](https://quay.io/repository/fhcrc-microbiome/paladin)
 
 SAMPLE COMMANDS
 --
@@ -36,7 +41,7 @@ Download and prepare UniProt UniRef90 index files.
 ```
 paladin prepare -r2 
 ```
-Index UniProt (or another protein) fasta, if not using the automated `prepare` command
+Index UniProt (or another protein) fasta. (See [here](#prepare-index) for an explanation of `prepare` vs `index`)
 ```
 paladin index -r3 uniprot_sprot.fasta.gz
 ```
@@ -70,14 +75,29 @@ paladin align -t 4 -o lungstudy uniprot_sprot.fasta.gz SRR1177122.fastq.gz
 #look at report file, SAM, etc.
 ```
 
+**Prepare vs Index**
+<a name="prepare-index"></a>
+
+All references must be initially indexed via either the `prepare` or `index` commands before use with PALADIN.
+
+The `prepare` command must be run for all UniProt or UniProt formatted references, and is necessary if you wish PALADIN to generate the TSV UniProt characterization report during alignment.  The `prepare` command will download and index the Swiss-Prot or UniRef90 protein databases by default, or you may specify a local, custom reference formatted using the `>sp|AccID|KBID` header format of the Swiss-Prot database, using valid UniProt KBIDs.
+
+If you do not require the TSV file during alignment, and only wish to generate SAM alignment data, the `index` command is sufficient to index the reference.  References indexed via the `index` command do not need to adhere to the UniProt format.  References indexed via the `index` command may later be upgraded to fully prepared references using `prepare`, as long as they adhere to the UniProt header format.
+
+**Wrapper script**
+
+This repo also contains a wrapper script (`run.py`) which is intended to make it easier to deploy Paladin on cloud or HPC computing resources (e.g. Slurm or AWS). The script is located in the PATH in the Docker image, and so you can run `run.py -h` to see the set of options for this script. In brief, users can specify the input URL, reference database path, and output folder location (any of which may be local paths, S3 buckets, or FTP). The run script will fetch the input data, run Paladin, wrap up the results into a single JSON output file, and copy the results to the specified output folder. 
+
 OUTPUT
 --
 
 1. A SAM/BAM file that can be used for any downstream analyses.
 2. A tab delimited UniProt report file.
 
+**Note: Be sure to filter your results by the maximum mapping quality.**  Though an ORF may successfully map to a protein/cluster, this does not indicate how likely this is a correct mapping.  Without filtering, the SAM/TSV files will include may entries that are likely noise.  A high maximum mapping quality indicates at least one ORF mapped with high confidence to the reported protein/cluster.
+
 ```
-#FORMAT
+TSV FORMAT
 
 Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
 ```
@@ -93,7 +113,7 @@ Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	
 - Genes
 - Pathway	Features
 - Gene Ontology
-- Reviewd
+- Reviewed
 - Existence
 - Comments
 - Cross Reference (KEGG): Corresponding entry in KEGG database (http://www.genome.jp/kegg/)
@@ -101,6 +121,9 @@ Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	
 - Cross Reference (PATRIC): Corresponding entry in PATRIC database (http://www.patricbrc.org)
 - Cross Reference (EnsemblBacteria): Corresponding entry in Ensembl Bacteria database (http://bacteria.ensembl.org)
 
+PALADIN-plugins
+--
+A number of preparation and downstream analysis tools are available via the PALADIN-plugins package.  This includes HPC MPI support, customized UniProt reports, taxonomic analysis, GO term analysis, etc.  PALADIN-plugins can be found [here](https://github.com/twestbrookunh/paladin-plugins/).
 
 [![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
 
