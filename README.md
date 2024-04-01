@@ -14,7 +14,7 @@ PALADIN often outperforms comparable tools such as BLASTX and DIAMOND (https://p
 
 PALADIN currently only supports single-end (or merged) reads. It makes use of many BWA parameters and is therefore compatible with many of its command line arguments.
 
-PALADIN may output a standard SAM file and a tabular file containing characterization information gathered from UniProt. This text file may be used for all downstream characterizations. See PALADIN-Plugins for additional related tools.
+PALADIN may output a standard SAM file and a tabular file containing characterization information gathered from UniProt. This text file may be used for all downstream characterizations. See PALADIN-Plugins below for additional related tools.
 
 
 INSTALLATION
