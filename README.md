@@ -2,7 +2,7 @@
 
 **P**rotein **AL**ignment **A**nd **D**etection **IN**terface
 
-PALADIN is a protein sequence alignment tool designed for the accurate functional characterization of metagenomes.
+PALADIN is a high-performance protein sequence alignment tool designed for the accurate functional characterization of metagenomes.
 
 Check out PALADIN in action in this YouTube tutorial!
 
