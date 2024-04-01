@@ -4,11 +4,11 @@
 
 PALADIN is a protein sequence alignment tool designed for the accurate functional characterization of metagenomes.
 
-PALADIN is based on BWA, and aligns sequences via read-mapping using BWT. PALADIN, however, offers the novel approach of aligning in the protein space.  During the index phase, it processes the reference genome's nucleotide sequences and GTF/GFF annotation containing CDS entries, first converting these transcripts into the corresponding protein sequences, then creating the BWT and suffix array from these proteins. The process of translatation is skiped when providing a protein reference file (e.g., UniProt) for mapping. During the alignment phase, it attempts to find ORFs in the read sequences, then converts these to protein sequences, and aligns to the reference protein sequences. 
+PALADIN is based on BWA and aligns sequences via the BWT. PALADIN, however, offers the novel approach of aligning in protein space. PALADIN is optimized to work with UniProt's SwissProt or UniRef databases as references - it can automatically download these references and provides extensive characterization data when using them.  It also supports manually curated protein references, as well as reference genomes in nucleotide format with an accompanying GTF/GFF annotation containing CDS entries. During alignment, PALADIN will perform ORF detection and translate all detected ORFs into protein sequences to perform alignment. PALADIN also supports transcript (ribo-depleted or poly-A selected) or protein inputs. ORF detection is modified/disabled in these modes.
 
-PALADIN currently only supports single-end reads (or reads merged with FLASH, PEAR, abyss-mergepairs), and BWA-MEM based alignment. It makes use of many BWA parameters and is therefore compatible with many of its command line arguments.
+PALADIN currently only supports single-end (or merged) reads. It makes use of many BWA parameters and is therefore compatible with many of its command line arguments.
 
-PALADIN may output a standard SAM file, or a text file containing a UniProt-generated functional profile. This text file may be used for all downstream characterizations. 
+PALADIN may output a standard SAM file and a tabular file containing characterization information gathered from UniProt. This text file may be used for all downstream characterizations. See PALADIN-Plugins for additional related tools.
 
 
 INSTALLATION
