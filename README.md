@@ -4,6 +4,10 @@
 
 PALADIN is a protein sequence alignment tool designed for the accurate functional characterization of metagenomes.
 
+Check out PALADIN in action in this YouTube tutorial!
+
+[![PALADIN Demonstration](https://img.youtube.com/vi/xo7Njkrjmu8/0.jpg)](https://www.youtube.com/watch?v=xo7Njkrjmu8)
+
 PALADIN is based on BWA and aligns sequences via the BWT. PALADIN, however, offers the novel approach of aligning in protein space. PALADIN is optimized to work with UniProt's SwissProt or UniRef databases as references - it can automatically download these references and provides extensive characterization data when using them.  It also supports manually curated protein references, as well as reference genomes in nucleotide format with an accompanying GTF/GFF annotation containing CDS entries. During alignment, PALADIN will perform ORF detection and translate all detected ORFs into protein sequences to perform alignment. PALADIN also supports transcript (ribo-depleted or poly-A selected) or protein inputs. ORF detection is modified/disabled in these modes.
 
 PALADIN often outperforms comparable tools such as BLASTX and DIAMOND (https://pubmed.ncbi.nlm.nih.gov/28158639).
@@ -12,9 +16,6 @@ PALADIN currently only supports single-end (or merged) reads. It makes use of ma
 
 PALADIN may output a standard SAM file and a tabular file containing characterization information gathered from UniProt. This text file may be used for all downstream characterizations. See PALADIN-Plugins for additional related tools.
 
-Check out PALADIN in action! This YouTube tutorial demonstrates performing a metagenomic analysis with PALADIN:
-
-[![PALADIN Demonstration](https://img.youtube.com/vi/xo7Njkrjmu8/0.jpg)](https://www.youtube.com/watch?v=xo7Njkrjmu8)
 
 INSTALLATION
 --
