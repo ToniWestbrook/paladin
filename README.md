@@ -45,11 +45,11 @@ Index UniProt (or another protein) fasta. (See [here](#prepare-index) for an exp
 ```
 paladin index -r3 uniprot_sprot.fasta.gz
 ```
-Align a set of reads using 4 theads. Send the full UniProt report to paladin_uniprot.tsv.
+Align a set of reads using 4 threads. Send the full UniProt report to paladin_uniprot.tsv.
 ```
 paladin align -t 4 -o paladin index input.fastq.gz
 ```
-Align a set of reads using 4 theads. Produce a bam file.
+Align a set of reads using 4 threads. Produce a bam file.
 ```
 paladin align -t 4 index input.fastq.gz | samtools view -Sb - > test.bam
 ```
@@ -62,7 +62,7 @@ Align a set of reads, report secondary alignments, and generate UniProt report f
 paladin align -a -o paladin index input.fastq.gz
 ```
 
-If you're intersted in trying this out on a smallish test file, try downloading this one which is from a human lung metagenome study: http://www.ebi.ac.uk/ena/data/view/PRJNA71831
+If you're interested in trying this out on a smallish test file, try downloading this one which is from a human lung metagenome study: http://www.ebi.ac.uk/ena/data/view/PRJNA71831
 
 
 ```
@@ -99,7 +99,7 @@ OUTPUT
 ```
 TSV FORMAT
 
-Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewd	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
+Count	Abundance Quality (Avg) Quality (Max) UniProtKB	ID	Organism	Protein Names	Genes	Pathway	Features	Gene Ontology	Reviewed	Existence	Comments  Cross Reference (KEGG)  Cross Reference (GeneID)  Cross Reference (PATRIC)  Cross Reference(EnsemblBacteria)
 ```
 
 - Count: The number of reads mapping to that UniProt entry
