@@ -12,6 +12,10 @@ PALADIN currently only supports single-end (or merged) reads. It makes use of ma
 
 PALADIN may output a standard SAM file and a tabular file containing characterization information gathered from UniProt. This text file may be used for all downstream characterizations. See PALADIN-Plugins for additional related tools.
 
+Check out PALADIN in action! This YouTube tutorial demonstrates performing a metagenomic analysis with PALADIN:
+
+https://www.youtube.com/watch?v=xo7Njkrjmu8
+
 
 INSTALLATION
 --
