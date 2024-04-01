@@ -125,8 +125,6 @@ PALADIN-plugins
 --
 A number of preparation and downstream analysis tools are available via the PALADIN-plugins package.  This includes HPC MPI support, customized UniProt reports, taxonomic analysis, GO term analysis, etc.  PALADIN-plugins can be found [here](https://github.com/twestbrookunh/paladin-plugins/).
 
-[![PALADIN Wiki](https://github.com/twestbrookunh/paladin/wiki)]
-
 [![Join the chat at https://gitter.im/twestbrookunh/paladin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/twestbrookunh/paladin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
