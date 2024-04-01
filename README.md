@@ -14,8 +14,7 @@ PALADIN may output a standard SAM file and a tabular file containing characteriz
 
 Check out PALADIN in action! This YouTube tutorial demonstrates performing a metagenomic analysis with PALADIN:
 
-https://www.youtube.com/watch?v=xo7Njkrjmu8
-
+[![PALADIN Demonstration](https://img.youtube.com/vi/xo7Njkrjmu8/0.jpg)](https://www.youtube.com/watch?v=xo7Njkrjmu8)
 
 INSTALLATION
 --
