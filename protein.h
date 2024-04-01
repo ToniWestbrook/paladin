@@ -9,11 +9,12 @@
 #define OUTPUT_TYPE_UNIPROT_SIMPLE 0
 #define OUTPUT_TYPE_UNIPROT_FULL   1
 
-#define ALIGN_FLAG_BRUTE_ORF  0x0001
-#define ALIGN_FLAG_GEN_NT     0x0002
-#define ALIGN_FLAG_KEEP_PRO   0x0004
-#define ALIGN_FLAG_ADJUST_ORF 0x0008
-#define ALIGN_FLAG_MANUAL_PRO 0x0010
+#define ALIGN_FLAG_BRUTE_ORF         0x0001
+#define ALIGN_FLAG_GEN_NT            0x0002
+#define ALIGN_FLAG_KEEP_PRO          0x0004
+#define ALIGN_FLAG_ADJUST_ORF        0x0008
+#define ALIGN_FLAG_MANUAL_PRO        0x0010
+#define ALIGN_FLAG_MANUAL_TRANSCRIPT 0x0020
 
 typedef struct {
 	unsigned long startIdx;

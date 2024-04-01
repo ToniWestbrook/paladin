@@ -118,7 +118,7 @@ int command_align(int argc, char *argv[]) {
 	memset(&opt0, 0, sizeof(mem_opt_t));
     proxyAddress = NULL;
 
-	while ((c = getopt(argc, argv, "1epabgnMCSVYJjf:F:z:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:P:")) >= 0) {
+	while ((c = getopt(argc, argv, "1epqabgnMCSVYJjf:F:z:u:k:o:c:v:s:r:t:R:A:B:O:E:U:w:L:d:T:Q:D:m:I:N:W:x:G:h:y:K:X:H:P:")) >= 0) {
 		if (c == 'k') opt->min_seed_len = atoi(optarg), opt0.min_seed_len = 1;
 		else if (c == 'u') opt->outputType = atoi(optarg);
 		else if (c == 'f') opt->min_orf_len = atoi(optarg);
@@ -147,6 +147,7 @@ int command_align(int argc, char *argv[]) {
 		else if (c == 'n') opt->proteinFlag |= ALIGN_FLAG_KEEP_PRO;
 		else if (c == 'J') opt->proteinFlag &= ~ALIGN_FLAG_ADJUST_ORF;
         else if (c == 'p') opt->proteinFlag |= ALIGN_FLAG_MANUAL_PRO;
+        else if (c == 'q') opt->proteinFlag |= ALIGN_FLAG_MANUAL_TRANSCRIPT;
 		else if (c == 'c') opt->max_occ = atoi(optarg), opt0.max_occ = 1;
 		else if (c == 'd') opt->zdrop = atoi(optarg), opt0.zdrop = 1;
 		else if (c == 'v') bwa_verbose = atoi(optarg);
@@ -277,6 +278,12 @@ int command_align(int argc, char *argv[]) {
 			return 1; // FIXME memory leak
 		}
 	} else update_a(opt, &opt0);
+
+    // Check for incompatible options
+    if ((opt->proteinFlag & ALIGN_FLAG_MANUAL_PRO) && (opt->proteinFlag & ALIGN_FLAG_MANUAL_TRANSCRIPT)) {
+		logMessage(__func__, LOG_LEVEL_ERROR, "Both protein and transcriptome mode selected.\n");
+        return 1;
+    }
 
     // Default to standard genetic code for translations
     if (!opt->translations) opt->translations = convertTransArgs("");
@@ -440,13 +447,13 @@ int renderAlignUsage(const mem_opt_t * passOptions) {
 	fprintf(stderr, "Usage: paladin align [options] <idxbase> <in.fq>\n\n");
 
 	fprintf(stderr, "Gene detection options:\n\n");
+    fprintf(stderr, "       -q            disable ORF detection and treat input as transcript sequence\n");
     fprintf(stderr, "       -p            disable ORF detection and treat input as protein sequence\n");
-	fprintf(stderr, "       -b            disable brute force ORF detection\n");
+	fprintf(stderr, "       -b            disable brute force detection\n");
 	fprintf(stderr, "       -J            do not adjust minimum ORF length (constant value) for shorter read lengths\n");
 	fprintf(stderr, "       -f INT        minimum ORF length accepted (as constant value) [%d]\n", passOptions->min_orf_len);
 	fprintf(stderr, "       -F FLOAT      minimum ORF length accepted (as percentage of read length) [%.2f]\n", passOptions->min_orf_percent);
     fprintf(stderr, "       -z INT[,...]  Genetic code used for translation (-z ? for full list) [1]\n");    
-
 
 	fprintf(stderr, "\nAlignment options:\n\n");
 	fprintf(stderr, "       -t INT        number of threads [%d]\n", passOptions->n_threads);

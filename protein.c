@@ -243,6 +243,19 @@ int getSequenceORF(char * passSequence, unsigned long passLength, int passTrans,
 		endSeqPos = getLastAlignedPos(passLength, relFrame);
 		endOrfPos = getLastAlignedOrfPos(passLength, relFrame, passOptions);
 
+        // Treat entire sequence as ORF in transcript mode
+        if (passOptions->proteinFlag & ALIGN_FLAG_MANUAL_TRANSCRIPT) {
+            addORFHistory(history, historySize, frameIdx);
+            history[0][frameIdx][historySize[frameIdx] - 1] = (strandDir == 1) ? relFrame : passLength - 1 - relFrame;
+            history[1][frameIdx][historySize[frameIdx] - 1] = getLastAlignedPos(passLength, frameIdx);
+
+            if (passOptions->proteinFlag & ALIGN_FLAG_BRUTE_ORF) {
+                continue;
+            }
+
+            break;
+        }
+
 		// Adjust min ORF length if requested
 		if ((passOptions->proteinFlag & ALIGN_FLAG_ADJUST_ORF) && (passLength < passOptions->min_orf_len)) {
 			endOrfPos = getLastAlignedPos(passLength, relFrame);

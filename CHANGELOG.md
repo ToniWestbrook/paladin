@@ -1,5 +1,9 @@
 # Change Log
 
+## [1.6.0] - 2024-03-31
+### Added
+- Alignment command can now skip ORF detection and treat input sequences as transcripts (-q option)
+
 ## [1.5.0] - 2022-11-18
 ### Changed
 - Updated PALADIN to use UniProt's new API system
